@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { User } from './entities/user.entity';
 import { StellarService } from '../blockchain/stellar.service';
 
@@ -13,6 +14,7 @@ export class SweepTasksService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly stellarService: StellarService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /**
@@ -180,6 +182,14 @@ export class SweepTasksService {
     // await this.recordSweepTransaction(user.id, amount, user.defaultSavingsProductId);
 
     this.logger.log(`[STUB] Sweep completed for user ${user.id}`);
+
+    // Emit sweep.completed event for notifications
+    this.eventEmitter.emit('sweep.completed', {
+      userId: user.id,
+      amount: amount.toString(),
+      publicKey: user.publicKey,
+      timestamp: new Date(),
+    });
   }
 
   /**
