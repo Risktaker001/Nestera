@@ -8,6 +8,7 @@ import { DeadLetterEvent } from './entities/dead-letter-event.entity';
 import { SavingsProduct } from '../savings/entities/savings-product.entity';
 import { StellarService } from './stellar.service';
 import { DepositHandler } from './event-handlers/deposit.handler';
+import { WithdrawHandler } from './event-handlers/withdraw.handler';
 import { YieldHandler } from './event-handlers/yield.handler';
 
 describe('IndexerService', () => {
@@ -17,6 +18,7 @@ describe('IndexerService', () => {
   let savingsProductRepo: any;
   let deadLetterRepo: any;
   let depositHandler: any;
+  let withdrawHandler: any;
   let yieldHandler: any;
 
   const mockIndexerState = {
@@ -56,6 +58,7 @@ describe('IndexerService', () => {
     } as any;
 
     depositHandler = { handle: jest.fn().mockResolvedValue(true) };
+    withdrawHandler = { handle: jest.fn().mockResolvedValue(false) };
     yieldHandler = { handle: jest.fn().mockResolvedValue(false) };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -63,10 +66,20 @@ describe('IndexerService', () => {
         IndexerService,
         { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: StellarService, useValue: stellarService },
-        { provide: getRepositoryToken(IndexerState), useValue: indexerStateRepo },
-        { provide: getRepositoryToken(DeadLetterEvent), useValue: deadLetterRepo },
-        { provide: getRepositoryToken(SavingsProduct), useValue: savingsProductRepo },
+        {
+          provide: getRepositoryToken(IndexerState),
+          useValue: indexerStateRepo,
+        },
+        {
+          provide: getRepositoryToken(DeadLetterEvent),
+          useValue: deadLetterRepo,
+        },
+        {
+          provide: getRepositoryToken(SavingsProduct),
+          useValue: savingsProductRepo,
+        },
         { provide: DepositHandler, useValue: depositHandler },
+        { provide: WithdrawHandler, useValue: withdrawHandler },
         { provide: YieldHandler, useValue: yieldHandler },
       ],
     }).compile();
@@ -87,7 +100,9 @@ describe('IndexerService', () => {
     it('should initialize state and load contract IDs', async () => {
       await service.onModuleInit();
       expect(indexerStateRepo.findOne).toHaveBeenCalled();
-      expect(savingsProductRepo.find).toHaveBeenCalledWith({ where: { isActive: true } });
+      expect(savingsProductRepo.find).toHaveBeenCalledWith({
+        where: { isActive: true },
+      });
       expect(service.getMonitoredContracts()).toContain('CC1');
       expect(service.getMonitoredContracts()).toContain('CC2');
     });
@@ -100,13 +115,22 @@ describe('IndexerService', () => {
 
     it('should fetch and process events successfully', async () => {
       const mockEvents = [
-        { id: '1', ledger: '101', topic: ['deposit'], value: '100', txHash: 'hash1' },
+        {
+          id: '1',
+          ledger: '101',
+          topic: ['deposit'],
+          value: '100',
+          txHash: 'hash1',
+        },
       ];
       (stellarService.getEvents as jest.Mock).mockResolvedValue(mockEvents);
 
       await service.runIndexerCycle();
 
-      expect(stellarService.getEvents).toHaveBeenCalledWith(101, ['CC1', 'CC2']);
+      expect(stellarService.getEvents).toHaveBeenCalledWith(101, [
+        'CC1',
+        'CC2',
+      ]);
       expect(depositHandler.handle).toHaveBeenCalled();
       expect(indexerStateRepo.save).toHaveBeenCalled();
       expect(service.getIndexerState()?.lastProcessedLedger).toBe(101);
@@ -114,7 +138,13 @@ describe('IndexerService', () => {
 
     it('should handle failed events by logging to dead letter queue', async () => {
       const mockEvents = [
-        { id: '1', ledger: '101', topic: ['deposit'], value: 'fail', txHash: 'hash1' },
+        {
+          id: '1',
+          ledger: '101',
+          topic: ['deposit'],
+          value: 'fail',
+          txHash: 'hash1',
+        },
       ];
       (stellarService.getEvents as jest.Mock).mockResolvedValue(mockEvents);
       depositHandler.handle.mockRejectedValue(new Error('Processing failed'));

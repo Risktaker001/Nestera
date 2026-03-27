@@ -7,6 +7,7 @@ import { rpc } from '@stellar/stellar-sdk';
 import { DeadLetterEvent } from './entities/dead-letter-event.entity';
 import { IndexerState } from './entities/indexer-state.entity';
 import { DepositHandler } from './event-handlers/deposit.handler';
+import { WithdrawHandler } from './event-handlers/withdraw.handler';
 import { YieldHandler } from './event-handlers/yield.handler';
 import { StellarService } from './stellar.service';
 import { SavingsProduct } from '../savings/entities/savings-product.entity';
@@ -43,6 +44,7 @@ export class IndexerService implements OnModuleInit {
     @InjectRepository(SavingsProduct)
     private readonly savingsProductRepo: Repository<SavingsProduct>,
     private readonly depositHandler: DepositHandler,
+    private readonly withdrawHandler: WithdrawHandler,
     private readonly yieldHandler: YieldHandler,
   ) {}
 
@@ -156,7 +158,7 @@ export class IndexerService implements OnModuleInit {
     } catch (err) {
       const msg = (err as Error).message;
       this.logger.error(
-        `Failed to process event ${event.id} from ledger ${event.ledger}: ${msg}`,
+        `FAILURE at Ledger ${event.ledger}: Processing of event ${event.id} crashed. JSON: ${JSON.stringify(event)}. Error: ${msg}`,
       );
 
       await this.dlqRepo.save(
@@ -173,6 +175,7 @@ export class IndexerService implements OnModuleInit {
 
   private async handleEvent(event: SorobanEvent): Promise<void> {
     if (await this.depositHandler.handle(event)) return;
+    if (await this.withdrawHandler.handle(event)) return;
     if (await this.yieldHandler.handle(event)) return;
 
     this.logger.debug(`Unhandled event: ${JSON.stringify(event.topic)}`);
