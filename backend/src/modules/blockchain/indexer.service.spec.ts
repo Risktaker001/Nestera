@@ -13,6 +13,7 @@ import { StellarService } from './stellar.service';
 import { DepositHandler } from './event-handlers/deposit.handler';
 import { WithdrawHandler } from './event-handlers/withdraw.handler';
 import { YieldHandler } from './event-handlers/yield.handler';
+import { createHash } from 'crypto';
 
 describe('IndexerService', () => {
   let service: IndexerService;
@@ -167,22 +168,40 @@ describe('IndexerService', () => {
     });
 
     it('should handle failed events by logging to dead letter queue', async () => {
+      const DEPOSIT_HASH_HEX = createHash('sha256')
+        .update('Deposit')
+        .digest('hex');
+
       const mockEvents = [
         {
           id: '1',
-          ledger: 101,
-          topic: ['deposit'],
-          value: 'fail',
+          ledger: 102, // ← Changed from 101 to 102
+          topic: [DEPOSIT_HASH_HEX],
+          value: {
+            publicKey: 'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+            amount: '1000',
+          },
           txHash: 'hash1',
         },
       ];
       (stellarService.getEvents as jest.Mock).mockResolvedValue(mockEvents);
-      depositHandler.handle.mockRejectedValue(new Error('Processing failed'));
+
+      // Spy on detectReorg to ensure it returns null (no reorg)
+      jest.spyOn(service as any, 'detectReorg').mockResolvedValue(null);
+
+      // Reset and reassign the mock to throw
+      depositHandler.handle = jest
+        .fn()
+        .mockRejectedValue(new Error('Processing failed'));
 
       await service.runIndexerCycle();
 
       expect(deadLetterRepo.save).toHaveBeenCalled();
       expect(service.getIndexerState()?.totalEventsFailed).toBe(1);
+
+      const savedDlqEntry = deadLetterRepo.save.mock.calls[0][0];
+      expect(savedDlqEntry.ledgerSequence).toBe(102); // ← Updated
+      expect(savedDlqEntry.errorMessage).toBe('Processing failed');
     });
 
     it('should skip cycle if no active contracts', async () => {
