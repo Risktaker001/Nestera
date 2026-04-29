@@ -52,7 +52,7 @@ const SecuritySection: React.FC = () => {
               <ShieldCheck size={13} /> Smart Contract Security
             </div>
             <h2 className="text-4xl font-extrabold text-white leading-tight mb-6">
-              Security isn't a feature —<br />it's the foundation.
+              Security isn&apos;t a feature —<br />it&apos;s the foundation.
             </h2>
             <p className="text-[1rem] leading-relaxed text-[rgba(180,210,210,0.65)] mb-10">
               Nestera is built on a principle of radical transparency. Every line of contract code is open-source, every audit is public, and every user retains full custody of their assets at all times.

@@ -16,7 +16,7 @@ const FeaturesHero: React.FC = () => {
       <div className="relative z-10 max-w-[1200px] mx-auto px-12 max-md:px-6 flex flex-col items-center text-center gap-6">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-widest">
           <Sparkles size={14} />
-          Everything you need. Nothing you don't.
+          Everything you need. Nothing you don&apos;t.
         </div>
 
         <h1 className="text-[clamp(2.8rem,6vw,5rem)] font-extrabold leading-[1.05] tracking-tight text-white max-w-4xl">

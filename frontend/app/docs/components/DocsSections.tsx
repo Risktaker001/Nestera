@@ -90,7 +90,7 @@ const DocsSections: React.FC<SectionProps> = ({ section }) => {
               </li>
               <li className="flex items-start gap-3">
                 <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 text-xs flex items-center justify-center font-bold shrink-0 mt-0.5">4</span>
-                <span>Click the "Connect Wallet" button in the Nestera navigation bar.</span>
+                <span>Click the &quot;Connect Wallet&quot; button in the Nestera navigation bar.</span>
               </li>
             </ul>
           </div>
@@ -138,7 +138,7 @@ const DocsSections: React.FC<SectionProps> = ({ section }) => {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
           <h1 className="text-4xl font-extrabold text-white mb-6 tracking-tight">API Documentation</h1>
           <p className="text-lg text-[rgba(180,210,210,0.7)] leading-relaxed mb-8">
-            Developers can integrate Nestera's saving features into their own applications using our REST API or by interacting directly with our smart contracts.
+            Developers can integrate Nestera&apos;s saving features into their own applications using our REST API or by interacting directly with our smart contracts.
           </p>
 
           <h2 className="text-2xl font-bold text-white mb-4">Getting Pool Data</h2>
@@ -153,7 +153,7 @@ console.log(\`Current APY: \${data.apy}%\`);`}
           />
 
           <h2 className="text-2xl font-bold text-white mb-4 mt-12">User Balance API</h2>
-          <p className="text-[rgba(180,210,210,0.7)] mb-4">Retrieve a user's total savings across all goals.</p>
+          <p className="text-[rgba(180,210,210,0.7)] mb-4">Retrieve a user&apos;s total savings across all goals.</p>
           <CodeBlock 
             language="bash"
             code={`curl -X GET "https://api.nestera.io/v1/user/GABC...1234/balance" \\

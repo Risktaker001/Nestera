@@ -53,7 +53,7 @@ const GoalToolsSection: React.FC = () => {
               Save with intention. Reach goals faster.
             </h2>
             <p className="text-[1rem] leading-relaxed text-[rgba(180,210,210,0.65)] mb-8">
-              Vague savings stall. Concrete goals with deadlines succeed. Nestera's goal toolkit gives every deposit a purpose — and a finish line.
+              Vague savings stall. Concrete goals with deadlines succeed. Nestera&apos;s goal toolkit gives every deposit a purpose — and a finish line.
             </p>
             <p className="text-[0.95rem] leading-relaxed text-[rgba(180,210,210,0.5)]">
               All goal logic runs entirely on-chain. No third party can freeze, redirect, or delay your progress. 
