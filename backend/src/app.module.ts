@@ -9,6 +9,7 @@ import { RequestLoggingInterceptor } from './common/interceptors/request-logging
 import { GracefulShutdownInterceptor } from './common/interceptors/graceful-shutdown.interceptor';
 import { TieredThrottlerGuard } from './common/guards/tiered-throttler.guard';
 import { CommonModule } from './common/common.module';
+import { EventBusModule } from './common/event-bus/event-bus.module';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
 import * as Joi from 'joi';
@@ -219,6 +220,7 @@ const envValidationSchema = Joi.object({
     PostmanModule,
     PerformanceModule,
     CommonModule,
+    EventBusModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: 'default',
