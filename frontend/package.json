@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint app",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@stellar/freighter-api": "^3.1.0",
@@ -22,8 +24,14 @@
     "stellar-sdk": "^13.3.0"
   },
   "devDependencies": {
+    "@chromatic-com/storybook": "^5.1.2",
     "@eslint/eslintrc": "^3.3.5",
     "@next/eslint-plugin-next": "^16.2.4",
+    "@storybook/addon-a11y": "^10.3.5",
+    "@storybook/addon-docs": "^10.3.5",
+    "@storybook/addon-onboarding": "^10.3.5",
+    "@storybook/addon-vitest": "^10.3.5",
+    "@storybook/nextjs-vite": "^10.3.5",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -33,18 +41,25 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@typescript-eslint/parser": "^8.59.1",
+    "@vitest/browser-playwright": "^4.1.5",
+    "@vitest/coverage-v8": "^4.1.5",
     "autoprefixer": "^10.4.27",
     "eslint": "^10.0.1",
-    "jest": "^30.3.0",
-    "jest-canvas-mock": "^2.5.2",
-    "jest-environment-jsdom": "^30.3.0",
     "eslint-config-next": "^16.2.4",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-storybook": "^10.3.5",
+    "jest": "^30.3.0",
+    "jest-canvas-mock": "^2.5.2",
+    "jest-environment-jsdom": "^30.3.0",
+    "playwright": "^1.59.1",
     "postcss": "^8.5.6",
     "prettier": "^3.8.1",
+    "storybook": "^10.3.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite": "^8.0.10",
+    "vitest": "^4.1.5"
   }
 }

@@ -52,7 +52,7 @@ interface WalletContextValue extends WalletState {
   fetchBalances: () => Promise<void>;
 }
 
-const WalletContext = createContext<WalletContextValue | null>(null);
+export const WalletContext = createContext<WalletContextValue | null>(null);
 
 const COINGECKO_IDS: Record<string, string> = {
   XLM: "stellar",
