@@ -51,12 +51,12 @@ describe('DepositHandler', () => {
   };
   const txRepo = {
     findOne: jest.fn(),
-    save: jest.fn(),
+    save: jest.fn().mockImplementation((v) => v),
     create: jest.fn().mockImplementation((v) => v),
   };
   const subRepo = {
     findOne: jest.fn(),
-    save: jest.fn(),
+    save: jest.fn().mockImplementation((v) => ({ ...v, id: 'sub-id' })),
     create: jest.fn().mockImplementation((v) => v),
   };
   const productRepo = {
@@ -97,6 +97,7 @@ describe('DepositHandler', () => {
       userRepo.findOne.mockResolvedValue(mockUser);
       txRepo.findOne.mockResolvedValue(null);
       subRepo.findOne.mockResolvedValue({
+        id: 'sub-id',
         userId: 'user-id',
         amount: 1000,
         status: SubscriptionStatus.ACTIVE,
@@ -142,6 +143,7 @@ describe('DepositHandler', () => {
       };
       userRepo.findOne.mockResolvedValue(mockUser);
       subRepo.findOne.mockResolvedValue({
+        id: 'sub-id',
         userId: 'user-id',
         amount: 100,
         status: SubscriptionStatus.ACTIVE,

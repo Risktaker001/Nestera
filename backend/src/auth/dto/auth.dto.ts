@@ -41,7 +41,10 @@ export class RegisterDto {
   @IsString()
   referralCode?: string;
 
-  @ApiPropertyOptional({ example: 'device-123', description: 'Device identifier' })
+  @ApiPropertyOptional({
+    example: 'device-123',
+    description: 'Device identifier',
+  })
   @IsOptional()
   @IsString()
   deviceId?: string;
@@ -67,7 +70,10 @@ export class LoginDto {
   @IsString()
   password: string;
 
-  @ApiPropertyOptional({ example: 'device-123', description: 'Device identifier' })
+  @ApiPropertyOptional({
+    example: 'device-123',
+    description: 'Device identifier',
+  })
   @IsOptional()
   @IsString()
   deviceId?: string;
@@ -98,6 +104,8 @@ export class VerifySignatureDto {
   @ApiProperty({
     description: 'Hex-encoded Ed25519 signature over the nonce',
     example: 'a1b2c3d4e5f60718293a4b5c6d7e8f9...',
+    description:
+      'Hex-encoded Ed25519 signature over the prefixed nonce message: "[Nestera] Auth Login Nonce: <nonce>"',
   })
   @IsString()
   signature: string;
@@ -115,7 +123,10 @@ export class RefreshTokenDto {
   @IsString()
   token: string;
 
-  @ApiPropertyOptional({ example: 'device-123', description: 'Device identifier' })
+  @ApiPropertyOptional({
+    example: 'device-123',
+    description: 'Device identifier',
+  })
   @IsOptional()
   @IsString()
   deviceId?: string;
@@ -125,7 +136,7 @@ export class RefreshTokenDto {
  * Body accepted by POST /auth/link-wallet.
  * The caller must:
  *  1. Fetch a nonce via GET /auth/nonce?publicKey=<key>
- *  2. Sign the nonce bytes with the wallet's Ed25519 secret key
+ *  2. Sign the message "[Nestera] Auth Login Nonce: <nonce>" with the wallet\'s Ed25519 secret key
  *  3. Submit this DTO together with a valid JWT (Bearer token)
  */
 export class LinkWalletDto {
@@ -146,6 +157,8 @@ export class LinkWalletDto {
   @ApiProperty({
     description: 'Hex-encoded Ed25519 signature of the nonce bytes',
     example: 'a1b2c3d4e5f60718293a4b5c6d7e8f9...',
+    description:
+      'Hex-encoded Ed25519 signature of the prefixed nonce message: "[Nestera] Auth Login Nonce: <nonce>"',
   })
   @IsString()
   signature: string;

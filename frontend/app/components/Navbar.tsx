@@ -7,6 +7,9 @@ import { Loader2, Wallet } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
 import { useWallet } from "../context/WalletContext";
 import { useToast } from "../context/ToastContext";
+import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useClickOutside } from "../hooks/useClickOutside";
+import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 
 interface NavLink {
   label: string;
@@ -36,6 +39,10 @@ const Navbar: React.FC = () => {
   const { address, network, isConnected, isLoading, error, connect } = useWallet();
   const toast = useToast();
   const previousConnectedRef = useRef(isConnected);
+  
+  // Refs for click outside detection
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   const isActiveLink = (href: string): boolean => {
     return pathname === href || pathname?.startsWith(href + "/") || false;
@@ -44,6 +51,31 @@ const Navbar: React.FC = () => {
   const shortAddress = address
     ? `${address.slice(0, 4)}...${address.slice(-4)}`
     : null;
+
+  // Close mobile menu handler
+  const closeMobileMenu = () => {
+    setIsMobileMenuOpen(false);
+  };
+
+  // Focus trap for mobile menu
+  useFocusTrap({
+    isOpen: isMobileMenuOpen,
+    containerRef: mobileMenuRef,
+    onEscape: closeMobileMenu,
+  });
+
+  // Click outside to close mobile menu
+  useClickOutside({
+    isActive: isMobileMenuOpen,
+    ref: mobileMenuRef,
+    onClickOutside: closeMobileMenu,
+    excludeRefs: [menuButtonRef],
+  });
+
+  // Lock body scroll when mobile menu is open
+  useBodyScrollLock({
+    isLocked: isMobileMenuOpen,
+  });
 
   useEffect(() => {
     if (error) {
@@ -124,11 +156,13 @@ const Navbar: React.FC = () => {
             <WalletButton />
 
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={() => setIsMobileMenuOpen((open) => !open)}
               className="inline-flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] md:hidden"
               aria-expanded={isMobileMenuOpen}
-              aria-label="Toggle navigation menu"
+              aria-controls="mobile-menu"
+              aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
             >
               {isMobileMenuOpen ? (
                 <svg
@@ -136,6 +170,7 @@ const Navbar: React.FC = () => {
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
@@ -149,6 +184,7 @@ const Navbar: React.FC = () => {
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <path
                     strokeLinecap="round"
@@ -163,7 +199,12 @@ const Navbar: React.FC = () => {
       </div>
 
       <div
+        ref={mobileMenuRef}
+        id="mobile-menu"
         className={`border-t border-[var(--color-border)] bg-[var(--color-nav)] shadow-lg md:hidden ${isMobileMenuOpen ? "block" : "hidden"}`}
+        role="navigation"
+        aria-label="Mobile navigation"
+        aria-hidden={!isMobileMenuOpen}
       >
         <div className="flex flex-col gap-2 p-3 pb-4">
           <ThemeToggle fullWidth />
@@ -172,12 +213,12 @@ const Navbar: React.FC = () => {
               key={link.href}
               href={link.href}
               className={isActiveLink(link.href) ? `${mobileLinkBase} ${mobileLinkActive}` : mobileLinkBase}
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={closeMobileMenu}
+              aria-current={isActiveLink(link.href) ? "page" : undefined}
             >
               {link.label}
             </Link>
           ))}
-          <WalletButton mobile />
         </div>
       </div>
     </nav>

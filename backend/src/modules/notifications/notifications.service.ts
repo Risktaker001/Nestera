@@ -50,6 +50,16 @@ export interface MilestoneAchievedEvent {
   achievedAt: Date;
 }
 
+export interface BlockchainTransactionRevertedEvent {
+  userId: string;
+  transactionCount: number;
+  earliestLedger: number;
+  latestLedger: number;
+  transactionTypes: string[];
+  totalAmount: string;
+  reason: string;
+}
+
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
@@ -223,6 +233,40 @@ export class NotificationsService {
     } catch (error) {
       this.logger.error(
         `Error processing withdrawal.completed event for user ${event.userId}`,
+        error,
+      );
+    }
+  }
+
+  /**
+   * Listen to blockchain.transaction.reverted event and notify affected users
+   */
+  @OnEvent('blockchain.transaction.reverted')
+  async handleBlockchainTransactionReverted(
+    event: BlockchainTransactionRevertedEvent,
+  ) {
+    this.logger.log(
+      `Processing blockchain.transaction.reverted for user ${event.userId}`,
+    );
+
+    try {
+      const transactionLabel =
+        event.transactionCount === 1 ? 'transaction' : 'transactions';
+
+      await this.dispatchNotification({
+        userId: event.userId,
+        type: NotificationType.ADMIN_BROADCAST,
+        title: 'Blockchain Reorganization Detected',
+        message:
+          `We detected a chain reorganization and reverted ${event.transactionCount} ${transactionLabel} from ledgers ${event.earliestLedger}-${event.latestLedger}. Your balances were corrected automatically.`,
+        metadata: {
+          ...event,
+          category: 'blockchain-reorg',
+        },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error processing blockchain.transaction.reverted for user ${event.userId}`,
         error,
       );
     }

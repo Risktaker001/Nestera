@@ -49,6 +49,8 @@ pub struct ActionProposal {
     pub start_time: u64,
     pub end_time: u64,
     pub executed: bool,
+    /// Set to `true` when the proposal is canceled via `cancel_proposal`.
+    pub canceled: bool,
     pub for_votes: u128,
     pub against_votes: u128,
     pub abstain_votes: u128,
@@ -65,6 +67,8 @@ pub struct Proposal {
     pub start_time: u64,
     pub end_time: u64,
     pub executed: bool,
+    /// Set to `true` when the proposal is canceled via `cancel_proposal`.
+    pub canceled: bool,
     pub for_votes: u128,
     pub against_votes: u128,
     pub abstain_votes: u128,
@@ -132,6 +136,7 @@ pub fn create_proposal(
         start_time: now,
         end_time: now + config.voting_period,
         executed: false,
+        canceled: false,
         for_votes: 0,
         against_votes: 0,
         abstain_votes: 0,
@@ -186,6 +191,7 @@ pub fn create_action_proposal(
         start_time: now,
         end_time: now + config.voting_period,
         executed: false,
+        canceled: false,
         for_votes: 0,
         against_votes: 0,
         abstain_votes: 0,
@@ -325,6 +331,10 @@ pub fn vote(
             return Err(SavingsError::TooLate);
         }
 
+        if proposal.canceled {
+            return Err(SavingsError::PlanCompleted);
+        }
+
         match vote_type {
             1 => {
                 proposal.for_votes = proposal
@@ -361,6 +371,10 @@ pub fn vote(
     if let Some(mut proposal) = get_action_proposal(env, proposal_id) {
         if now < proposal.start_time || now > proposal.end_time {
             return Err(SavingsError::TooLate);
+        }
+
+        if proposal.canceled {
+            return Err(SavingsError::PlanCompleted);
         }
 
         match vote_type {
@@ -421,6 +435,10 @@ pub fn queue_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError> {
             return Err(SavingsError::PlanCompleted);
         }
 
+        if proposal.canceled {
+            return Err(SavingsError::TooLate);
+        }
+
         if proposal.for_votes <= proposal.against_votes {
             return Err(SavingsError::InsufficientBalance);
         }
@@ -446,6 +464,10 @@ pub fn queue_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError> {
 
         if proposal.executed {
             return Err(SavingsError::PlanCompleted);
+        }
+
+        if proposal.canceled {
+            return Err(SavingsError::TooLate);
         }
 
         if proposal.for_votes <= proposal.against_votes {
@@ -479,6 +501,10 @@ pub fn execute_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError>
             return Err(SavingsError::PlanCompleted);
         }
 
+        if proposal.canceled {
+            return Err(SavingsError::TooLate);
+        }
+
         let execution_time = proposal
             .queued_time
             .checked_add(config.timelock_duration)
@@ -507,6 +533,10 @@ pub fn execute_proposal(env: &Env, proposal_id: u64) -> Result<(), SavingsError>
 
         if proposal.executed {
             return Err(SavingsError::PlanCompleted);
+        }
+
+        if proposal.canceled {
+            return Err(SavingsError::TooLate);
         }
 
         let execution_time = proposal
@@ -577,22 +607,43 @@ fn execute_action(env: &Env, action: &ProposalAction) -> Result<(), SavingsError
     }
 }
 
-/// Cancels a proposal (creator or admin only)
+/// Cancels a proposal before execution.
+///
+/// Allowed callers:
+/// - The proposal creator, OR
+/// - The contract admin / active governance
+///
+/// Restrictions:
+/// - Already-executed proposals cannot be canceled.
+/// - Already-canceled proposals return an error.
+/// - Queued proposals can still be canceled (before execution).
 pub fn cancel_proposal(env: &Env, proposal_id: u64, caller: Address) -> Result<(), SavingsError> {
     caller.require_auth();
 
+    // Determine whether caller is admin/governance
+    let stored_admin: Option<Address> = env.storage().instance().get(&DataKey::Admin);
+    let is_admin = stored_admin.as_ref().map_or(false, |a| a == &caller);
+    let is_governance = is_governance_active(env) && is_admin;
+    let caller_is_privileged = is_admin || is_governance;
+
     // Try regular proposal
     if let Some(mut proposal) = get_proposal(env, proposal_id) {
-        if proposal.creator != caller {
+        // Only creator or admin/governance may cancel
+        if proposal.creator != caller && !caller_is_privileged {
             return Err(SavingsError::Unauthorized);
         }
 
-        if proposal.executed || proposal.queued_time > 0 {
+        // Cannot cancel an already-executed proposal
+        if proposal.executed {
             return Err(SavingsError::TooLate);
         }
 
-        // Mark as canceled (you may want a separate canceled field later)
-        proposal.executed = true;
+        // Cannot cancel an already-canceled proposal
+        if proposal.canceled {
+            return Err(SavingsError::TooLate);
+        }
+
+        proposal.canceled = true;
         env.storage()
             .persistent()
             .set(&GovernanceKey::Proposal(proposal_id), &proposal);
@@ -604,15 +655,19 @@ pub fn cancel_proposal(env: &Env, proposal_id: u64, caller: Address) -> Result<(
 
     // Try action proposal
     if let Some(mut proposal) = get_action_proposal(env, proposal_id) {
-        if proposal.creator != caller {
+        if proposal.creator != caller && !caller_is_privileged {
             return Err(SavingsError::Unauthorized);
         }
 
-        if proposal.executed || proposal.queued_time > 0 {
+        if proposal.executed {
             return Err(SavingsError::TooLate);
         }
 
-        proposal.executed = true;
+        if proposal.canceled {
+            return Err(SavingsError::TooLate);
+        }
+
+        proposal.canceled = true;
         env.storage()
             .persistent()
             .set(&GovernanceKey::ActionProposal(proposal_id), &proposal);

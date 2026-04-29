@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Download, History, Loader2, Search, ChevronDown } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Download, History, Loader2, Search, ChevronDown, Inbox } from "lucide-react";
 import TransactionRow, { TransactionType, TransactionStatus } from "./components/TransactionRow";
 import { useToast } from "../../context/ToastContext";
 
@@ -54,6 +54,7 @@ function downloadTextFile(
 
 export default function TransactionHistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const toast = useToast();
 
   useEffect(() => {
@@ -117,6 +118,29 @@ export default function TransactionHistoryPage() {
     toast.success("Transactions exported", "CSV file downloaded successfully.");
   }
 
+  const filteredTransactions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return transactions;
+
+    return transactions.filter((transaction) =>
+      [
+        transaction.date,
+        transaction.time,
+        transaction.transactionId,
+        transaction.type,
+        transaction.assetDetails,
+        transaction.amountDisplay,
+        transaction.status,
+        transaction.hash,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [searchQuery, transactions]);
+
+  const hasTransactions = filteredTransactions.length > 0;
+
   return (
     <div className="w-full max-w-7xl mx-auto pb-20">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
@@ -151,6 +175,8 @@ export default function TransactionHistoryPage() {
           />
           <input
             type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search by transaction, token, or hash..."
             className="w-full bg-[#0e2330] border border-white/5 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-[#4e7a86] focus:outline-hidden focus:border-cyan-500/50 transition-colors"
           />
@@ -179,7 +205,7 @@ export default function TransactionHistoryPage() {
               <div key={row} className="h-[72px] animate-pulse rounded-xl bg-white/5" />
             ))}
           </div>
-        ) : (
+        ) : hasTransactions ? (
           <div className="overflow-x-auto">
             <div className="min-w-[820px] overflow-hidden">
               <div className="grid grid-cols-12 px-5 py-3 border-b border-white/5 text-[#5e8c96] text-xs font-bold uppercase tracking-widest">
@@ -191,7 +217,7 @@ export default function TransactionHistoryPage() {
                 <div className="col-span-2 text-right">Status</div>
               </div>
 
-              {transactions.map((t) => (
+              {filteredTransactions.map((t) => (
                 <TransactionRow
                   key={t.hash}
                   date={t.date}
@@ -205,9 +231,38 @@ export default function TransactionHistoryPage() {
                   onClick={(id) => console.log("Open transaction", id)}
                 />
               ))}
-
-              <div className="h-[220px] border-b border-white/5" />
             </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-cyan-500/10 text-cyan-300">
+              <Inbox size={30} />
+            </div>
+            <h3 className="text-xl font-semibold text-[#dff]">
+              {searchQuery.trim() ? "No matching transactions" : "No transactions yet"}
+            </h3>
+            <p className="mt-2 max-w-lg text-sm text-[#90b4b4]">
+              {searchQuery.trim()
+                ? "Try a different token, transaction type, or hash to narrow your search."
+                : "Once deposits, withdrawals, swaps, or rewards are recorded, they will appear here."}
+            </p>
+            {searchQuery.trim() ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="mt-6 rounded-xl bg-cyan-500 px-6 py-2.5 font-semibold text-[#061a1a] hover:bg-cyan-400"
+              >
+                Clear search
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onExportCsv}
+                className="mt-6 rounded-xl border border-cyan-500/30 px-6 py-2.5 font-semibold text-cyan-300 hover:bg-cyan-500/10"
+              >
+                Export sample CSV
+              </button>
+            )}
           </div>
         )}
 

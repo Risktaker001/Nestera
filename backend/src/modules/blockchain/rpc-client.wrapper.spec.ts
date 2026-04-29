@@ -170,6 +170,65 @@ describe('RpcClientWrapper', () => {
         wrapper.executeWithRetry(mockOperation, 'rpc'),
       ).rejects.toThrow('No rpc endpoints configured');
     });
+
+    it('should throw error when no Horizon endpoints are configured', async () => {
+      const wrapper = new RpcClientWrapper(rpcEndpoints, [], {
+        maxRetries: 2,
+        retryDelay: 100,
+        timeoutMs: 5000,
+      });
+
+      const mockOperation = jest.fn();
+
+      await expect(
+        wrapper.executeWithRetry(mockOperation, 'horizon'),
+      ).rejects.toThrow('No horizon endpoints configured');
+    });
+
+    it('should failover for Horizon endpoints', async () => {
+      const wrapper = new RpcClientWrapper(rpcEndpoints, horizonEndpoints, {
+        maxRetries: 2,
+        retryDelay: 50,
+        timeoutMs: 5000,
+      });
+
+      let callCount = 0;
+      const mockOperation = jest.fn().mockImplementation(() => {
+        callCount++;
+        if (callCount <= 2) {
+          return Promise.reject(new Error('Horizon primary down'));
+        }
+        return Promise.resolve({ status: 'healthy' });
+      });
+
+      const result = await wrapper.executeWithRetry(mockOperation, 'horizon');
+
+      expect(result).toEqual({ status: 'healthy' });
+      expect(mockOperation).toHaveBeenCalledTimes(3);
+    });
+
+    it('should respect exponential backoff timing', async () => {
+      const retryDelay = 100;
+      const wrapper = new RpcClientWrapper(rpcEndpoints, horizonEndpoints, {
+        maxRetries: 3,
+        retryDelay,
+        timeoutMs: 5000,
+      });
+
+      const mockOperation = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Fail 1'))
+        .mockRejectedValueOnce(new Error('Fail 2'))
+        .mockResolvedValueOnce({ status: 'success' });
+
+      const startTime = Date.now();
+      await wrapper.executeWithRetry(mockOperation, 'rpc');
+      const duration = Date.now() - startTime;
+
+      // Expect at least: 100ms (1st retry) + 200ms (2nd retry) = 300ms
+      expect(duration).toBeGreaterThanOrEqual(300);
+      expect(mockOperation).toHaveBeenCalledTimes(3);
+    });
   });
 
   describe('getCurrentRpcServer', () => {

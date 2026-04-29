@@ -2,10 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { DataSource } from 'typeorm';
 import { IndexerService } from './indexer.service';
 import { IndexerState } from './entities/indexer-state.entity';
 import { DeadLetterEvent } from './entities/dead-letter-event.entity';
 import { SavingsProduct } from '../savings/entities/savings-product.entity';
+import { LedgerTransaction } from './entities/transaction.entity';
 import { StellarService } from './stellar.service';
 import { DepositHandler } from './event-handlers/deposit.handler';
 import { WithdrawHandler } from './event-handlers/withdraw.handler';
@@ -18,11 +21,30 @@ describe('IndexerService (DLQ Integration)', () => {
   let withdrawHandler: any;
   let yieldHandler: any;
   let stellarService: any;
+  let transactionRepo: any;
+  let dataSource: any;
 
   beforeEach(async () => {
     deadLetterRepo = {
       save: jest.fn().mockImplementation((val) => Promise.resolve(val)),
       create: jest.fn().mockImplementation((val) => val),
+    };
+
+    transactionRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      delete: jest.fn(),
+    };
+
+    dataSource = {
+      transaction: jest.fn(async (callback: any) =>
+        callback({
+          getRepository: () => ({
+            findOne: jest.fn(),
+            save: jest.fn(),
+            delete: jest.fn(),
+          }),
+        }),
+      ),
     };
 
     const indexerStateRepo = {
@@ -53,6 +75,8 @@ describe('IndexerService (DLQ Integration)', () => {
         IndexerService,
         { provide: ConfigService, useValue: { get: jest.fn() } },
         { provide: StellarService, useValue: stellarService },
+        { provide: EventEmitter2, useValue: { emitAsync: jest.fn() } },
+        { provide: DataSource, useValue: dataSource },
         {
           provide: getRepositoryToken(IndexerState),
           useValue: indexerStateRepo,
@@ -64,6 +88,10 @@ describe('IndexerService (DLQ Integration)', () => {
         {
           provide: getRepositoryToken(SavingsProduct),
           useValue: savingsProductRepo,
+        },
+        {
+          provide: getRepositoryToken(LedgerTransaction),
+          useValue: transactionRepo,
         },
         { provide: DepositHandler, useValue: depositHandler },
         { provide: WithdrawHandler, useValue: withdrawHandler },

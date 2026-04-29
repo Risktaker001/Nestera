@@ -71,25 +71,6 @@ export class WithdrawHandler {
         return;
       }
 
-      await txRepo.save(
-        txRepo.create({
-          userId: user.id,
-          type: LedgerTransactionType.WITHDRAW,
-          amount: payload.amount,
-          publicKey: payload.publicKey,
-          eventId,
-          status: LedgerTransactionStatus.COMPLETED,
-          transactionHash:
-            typeof event.txHash === 'string' ? event.txHash : null,
-          ledgerSequence:
-            typeof event.ledger === 'number' ? String(event.ledger) : null,
-          metadata: {
-            topic: event.topic,
-            rawValueType: typeof event.value,
-          },
-        }),
-      );
-
       const amountAsNumber = Number(payload.amount);
 
       const subscription = await subRepo.findOne({
@@ -105,6 +86,26 @@ export class WithdrawHandler {
           `No active subscription found for user ${user.id} to decrement withdrawal`,
         );
       }
+
+      await txRepo.save(
+        txRepo.create({
+          userId: user.id,
+          type: LedgerTransactionType.WITHDRAW,
+          amount: payload.amount,
+          publicKey: payload.publicKey,
+          eventId,
+          status: LedgerTransactionStatus.COMPLETED,
+          transactionHash:
+            typeof event.txHash === 'string' ? event.txHash : null,
+          ledgerSequence:
+            typeof event.ledger === 'number' ? String(event.ledger) : null,
+          metadata: {
+            topic: event.topic,
+            rawValueType: typeof event.value,
+            subscriptionId: subscription.id,
+          },
+        }),
+      );
 
       // Decrement the amount natively in the database to ensure atomicity and precision
       await manager.decrement(

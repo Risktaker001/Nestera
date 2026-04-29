@@ -22,7 +22,7 @@ pub struct Stake {
 pub struct StakingConfig {
     /// Minimum amount required to stake
     pub min_stake_amount: i128,
-    /// Maximum amount that can be staked per user
+    /// Maximum amount that can be staked per user (anti-whale)
     pub max_stake_amount: i128,
     /// Reward rate in basis points (e.g., 500 = 5% APY)
     pub reward_rate_bps: u32,
@@ -30,6 +30,12 @@ pub struct StakingConfig {
     pub enabled: bool,
     /// Lock period in seconds (0 = no lock)
     pub lock_period_seconds: u64,
+    /// Maximum token balance a single wallet may hold (0 = no limit).
+    /// Enforced on mint and transfer operations.
+    pub max_wallet_holding: i128,
+    /// Maximum total tokens a single user may stake (0 = no limit).
+    /// Enforced on every stake call.
+    pub max_staking_limit: i128,
 }
 
 /// Storage keys for staking module

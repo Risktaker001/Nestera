@@ -27,7 +27,7 @@ describe('YieldHandler', () => {
   };
   const txRepo = {
     findOne: jest.fn(),
-    save: jest.fn(),
+    save: jest.fn().mockImplementation((v) => v),
     create: jest.fn().mockImplementation((v) => v),
   };
   const subRepo = {

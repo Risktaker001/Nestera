@@ -7,6 +7,7 @@ use soroban_sdk::{
 
 mod autosave;
 mod config;
+mod emission;
 mod errors;
 mod flexi;
 mod goal;
@@ -1348,6 +1349,66 @@ impl NesteraContract {
     /// Checks if governance is active
     pub fn is_governance_active(env: Env) -> bool {
         governance::is_governance_active(&env)
+    }
+
+    /// Cancels a governance proposal before execution.
+    ///
+    /// Allowed callers: proposal creator OR contract admin / active governance.
+    /// Already-executed proposals cannot be canceled.
+    pub fn cancel_proposal(
+        env: Env,
+        proposal_id: u64,
+        caller: Address,
+    ) -> Result<(), SavingsError> {
+        governance::cancel_proposal(&env, proposal_id, caller)
+    }
+
+    // ========== Emission Schedule Functions (#712) ==========
+
+    /// Initialises the token emission schedule (admin only, one-time).
+    pub fn initialize_emission(
+        env: Env,
+        admin: Address,
+        emission_rate_per_second: i128,
+        max_supply: i128,
+        active: bool,
+    ) -> Result<(), SavingsError> {
+        emission::initialize_emission(&env, admin, emission_rate_per_second, max_supply, active)
+    }
+
+    /// Updates emission parameters (admin or active governance).
+    pub fn update_emission_config(
+        env: Env,
+        caller: Address,
+        emission_rate_per_second: i128,
+        max_supply: i128,
+        active: bool,
+    ) -> Result<(), SavingsError> {
+        emission::update_emission_config(
+            &env,
+            caller,
+            emission_rate_per_second,
+            max_supply,
+            active,
+        )
+    }
+
+    /// Returns the current emission configuration.
+    pub fn get_emission_config(env: Env) -> Result<emission::EmissionConfig, SavingsError> {
+        emission::get_emission_config(&env)
+    }
+
+    /// Mints all tokens accrued since the last emission call and sends them to `recipient`.
+    ///
+    /// Returns the number of tokens actually minted (0 if cap reached or emissions paused).
+    pub fn process_emission(env: Env, recipient: Address) -> Result<i128, SavingsError> {
+        ensure_not_paused(&env)?;
+        emission::process_emission(&env, recipient)
+    }
+
+    /// Returns `true` when the total supply has reached the configured emission cap.
+    pub fn is_supply_cap_reached(env: Env) -> Result<bool, SavingsError> {
+        emission::is_supply_cap_reached(&env)
     }
 
     // ========== Strategy Functions ==========

@@ -36,6 +36,7 @@ import { GovernanceModule } from './modules/governance/governance.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { NewsletterModule } from './modules/newsletter/newsletter.module';
 import { ReferralsModule } from './modules/referrals/referrals.module';
 import { RewardsModule } from './modules/rewards/rewards.module';
 import { TestRbacModule } from './test-rbac/test-rbac.module';
@@ -200,6 +201,7 @@ const envValidationSchema = Joi.object({
     NotificationsModule,
     TransactionsModule,
     ReportsModule,
+    NewsletterModule,
     ReferralsModule,
     RewardsModule,
     TestRbacModule,

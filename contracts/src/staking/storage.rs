@@ -13,6 +13,8 @@ pub fn default_staking_config() -> StakingConfig {
         reward_rate_bps: 500, // 5% APY
         enabled: true,
         lock_period_seconds: 0, // No lock by default
+        max_wallet_holding: 0,  // 0 = no limit
+        max_staking_limit: 0,   // 0 = no limit
     }
 }
 
@@ -217,6 +219,23 @@ pub fn stake(env: &Env, user: Address, amount: i128) -> Result<i128, SavingsErro
         return Err(SavingsError::AmountBelowMinimum);
     }
 
+    // Anti-whale: enforce per-user staking limit
+    if config.max_staking_limit > 0 {
+        let current_stake = get_user_stake(env, &user);
+        let new_total = current_stake
+            .amount
+            .checked_add(amount)
+            .ok_or(SavingsError::Overflow)?;
+        if new_total > config.max_staking_limit {
+            return Err(SavingsError::AmountExceedsLimit);
+        }
+    }
+
+    // Legacy per-stake cap (max_stake_amount) still applies
+    if amount > config.max_stake_amount {
+        return Err(SavingsError::AmountExceedsLimit);
+    }
+
     // Update rewards before modifying stake
     update_rewards(env)?;
 
@@ -394,4 +413,29 @@ pub fn get_staking_stats(env: &Env) -> Result<(i128, i128, i128), SavingsError> 
     let reward_per_token = get_reward_per_token(env);
 
     Ok((total_staked, total_rewards, reward_per_token))
+}
+
+/// Validates that a wallet's balance after receiving `amount` does not exceed
+/// the configured `max_wallet_holding` limit.
+///
+/// Returns `Ok(())` if the limit is not set (0) or if the new balance is within
+/// the limit.  Returns `Err(AmountExceedsLimit)` otherwise.
+///
+/// `current_balance` is the wallet's balance *before* the incoming transfer.
+pub fn validate_wallet_holding(
+    env: &Env,
+    current_balance: i128,
+    amount: i128,
+) -> Result<(), SavingsError> {
+    let config = get_staking_config(env)?;
+    if config.max_wallet_holding == 0 {
+        return Ok(());
+    }
+    let new_balance = current_balance
+        .checked_add(amount)
+        .ok_or(SavingsError::Overflow)?;
+    if new_balance > config.max_wallet_holding {
+        return Err(SavingsError::AmountExceedsLimit);
+    }
+    Ok(())
 }

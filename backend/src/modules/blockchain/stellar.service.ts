@@ -4,6 +4,7 @@ import {
   Account,
   Address,
   Asset,
+  BASE_FEE,
   Contract,
   Horizon,
   Keypair,
@@ -202,6 +203,131 @@ export class StellarService implements OnModuleInit {
     }
   }
 
+  /**
+   * Estimate fees for a Soroban contract call using simulation
+   */
+  async estimateSorobanFees(
+    contractId: string,
+    functionName: string,
+    args: any[] = [],
+  ): Promise<{ resourceFee: string; baseFee: string; totalFee: string }> {
+    try {
+      return await this.rpcClient.executeWithRetry(async (client) => {
+        const rpcServer = client as rpc.Server;
+        const sourceAccount = new Account(Keypair.random().publicKey(), '0');
+        const contract = new Contract(contractId);
+
+        const transaction = new TransactionBuilder(sourceAccount, {
+          fee: BASE_FEE,
+          networkPassphrase: this.getNetworkPassphrase(),
+        })
+          .addOperation(
+            contract.call(
+              functionName,
+              ...args.map((arg) => nativeToScVal(arg as never)),
+            ),
+          )
+          .setTimeout(30)
+          .build();
+
+        const simulation = await rpcServer.simulateTransaction(transaction);
+        if (rpc.Api.isSimulationError(simulation)) {
+          throw new Error(`Soroban simulation failed: ${simulation.error}`);
+        }
+
+        return this.calculateFees(transaction, simulation);
+      }, 'rpc');
+    } catch (error) {
+      this.logger.error(
+        `Failed to estimate fees for ${contractId}.${functionName}: ${(error as Error).message}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  private calculateFees(
+    transaction: any,
+    simulation: any,
+  ): { resourceFee: string; baseFee: string; totalFee: string } {
+    const resourceFee = BigInt(simulation.minResourceFee ?? 0);
+    const baseFee = BigInt(transaction.operations.length) * BigInt(BASE_FEE);
+    const totalFee = baseFee + resourceFee;
+
+    return {
+      resourceFee: resourceFee.toString(),
+      baseFee: baseFee.toString(),
+      totalFee: totalFee.toString(),
+    };
+  }
+
+  async invokeContractWrite(
+    contractId: string,
+    functionName: string,
+    secretKey: string,
+    args: any[] = [],
+  ): Promise<{ hash: string; status: string }> {
+    try {
+      return await this.rpcClient.executeWithRetry(async (client) => {
+        const rpcServer = client as rpc.Server;
+        const sourceKeypair = Keypair.fromSecret(secretKey);
+        const sourceAccount = await rpcServer.getAccount(
+          sourceKeypair.publicKey(),
+        );
+        const contract = new Contract(contractId);
+
+        let transaction = new TransactionBuilder(sourceAccount, {
+          fee: BASE_FEE,
+          networkPassphrase: this.getNetworkPassphrase(),
+        })
+          .addOperation(
+            contract.call(
+              functionName,
+              ...args.map((arg) => nativeToScVal(arg as never)),
+            ),
+          )
+          .setTimeout(30)
+          .build();
+
+        const simulation = await rpcServer.simulateTransaction(transaction);
+        if (rpc.Api.isSimulationError(simulation)) {
+          throw new Error(`Soroban simulation failed: ${simulation.error}`);
+        }
+
+        const fees = this.calculateFees(transaction, simulation);
+        transaction.fee = fees.totalFee;
+
+        transaction = rpc.assembleTransaction(transaction, simulation).build();
+        transaction.sign(sourceKeypair);
+
+        const sendResponse = await rpcServer.sendTransaction(transaction);
+        if (
+          'errorResult' in sendResponse &&
+          sendResponse.errorResult !== undefined &&
+          sendResponse.errorResult !== null
+        ) {
+          throw new Error(
+            `Soroban submission failed: ${String(sendResponse.errorResult ?? sendResponse.status)}`,
+          );
+        }
+
+        const hash = sendResponse.hash;
+        const finalizedStatus = await this.waitForTransactionResult(
+          rpcServer,
+          hash,
+        );
+
+        return { hash, status: finalizedStatus };
+      }, 'rpc');
+    } catch (error) {
+      this.logger.error(
+        `Failed to invoke contract write ${contractId}.${functionName}: ${(error as Error).message}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   async getDelegationForUser(publicKey: string): Promise<string | null> {
     const contractId = this.configService.get<string>('stellar.contractId');
     if (!contractId || !publicKey) {
@@ -394,5 +520,47 @@ export class StellarService implements OnModuleInit {
       'code' in error &&
       error.code === 404
     );
+  }
+
+  /**
+   * Generic method to wait for a transaction result by its hash
+   */
+  async waitForTransaction(hash: string): Promise<string> {
+    return await this.rpcClient.executeWithRetry(async (client) => {
+      const rpcServer = client as rpc.Server;
+      return await this.waitForTransactionResult(rpcServer, hash);
+    }, 'rpc');
+  }
+
+  public async waitForTransactionResult(
+    rpcServer: rpc.Server,
+    hash: string,
+  ): Promise<string> {
+    const maxAttempts = 20;
+    const delayMs = 1500;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      const txResult = await rpcServer.getTransaction(hash);
+      const status = txResult.status;
+
+      if (status === rpc.Api.GetTransactionStatus.SUCCESS) {
+        return status;
+      }
+
+      if (status === rpc.Api.GetTransactionStatus.FAILED) {
+        throw new Error(
+          `Transaction ${hash} ended with status ${String(status)}`,
+        );
+      }
+
+      if (status === rpc.Api.GetTransactionStatus.NOT_FOUND) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+
+    throw new Error(`Transaction ${hash} confirmation timed out`);
   }
 }

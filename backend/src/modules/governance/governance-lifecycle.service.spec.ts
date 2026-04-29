@@ -9,6 +9,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { GovernanceService } from './governance.service';
 import {
   GovernanceProposal,
+  ProposalType,
   ProposalStatus,
 } from './entities/governance-proposal.entity';
 import { Vote } from './entities/vote.entity';
@@ -18,6 +19,7 @@ import { StellarService } from '../blockchain/stellar.service';
 import { SavingsService } from '../blockchain/savings.service';
 import { TransactionsService } from '../transactions/transactions.service';
 import { LedgerTransaction } from '../blockchain/entities/transaction.entity';
+import { User } from '../user/entities/user.entity';
 
 const mockRepo = () => ({
   findOneBy: jest.fn(),
@@ -37,6 +39,7 @@ describe('GovernanceService – lifecycle & delegation', () => {
   let proposalRepo: ReturnType<typeof mockRepo>;
   let delegationRepo: ReturnType<typeof mockRepo>;
   let voteRepo: ReturnType<typeof mockRepo>;
+  let userRepo: ReturnType<typeof mockRepo>;
   let userService: { findById: jest.Mock };
   let stellarService: {
     getDelegationForUser: jest.Mock;
@@ -59,6 +62,8 @@ describe('GovernanceService – lifecycle & delegation', () => {
     requiredQuorum: '0',
     quorumBps: 5000,
     proposalThreshold: '100',
+    type: ProposalType.RATE_CHANGE,
+    action: { target: 'savings_rate', newValue: 0.12, duration: 30 },
     ...overrides,
   });
 
@@ -66,6 +71,7 @@ describe('GovernanceService – lifecycle & delegation', () => {
     proposalRepo = mockRepo();
     delegationRepo = mockRepo();
     voteRepo = mockRepo();
+    userRepo = mockRepo();
     userService = { findById: jest.fn() };
     stellarService = {
       getDelegationForUser: jest.fn(),
@@ -97,6 +103,10 @@ describe('GovernanceService – lifecycle & delegation', () => {
         {
           provide: getRepositoryToken(LedgerTransaction),
           useValue: mockRepo(),
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: userRepo,
         },
       ],
     }).compile();
@@ -156,6 +166,9 @@ describe('GovernanceService – lifecycle & delegation', () => {
         status: ProposalStatus.QUEUED,
         timelockEndsAt: past,
       });
+      jest
+        .spyOn(service as any, 'executeProposalOnChain')
+        .mockResolvedValue({ hash: '0xabc123', status: 'SUCCESS' });
       proposalRepo.findOneBy.mockResolvedValue(proposal);
       proposalRepo.save.mockResolvedValue({
         ...proposal,

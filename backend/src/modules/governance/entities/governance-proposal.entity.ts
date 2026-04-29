@@ -44,6 +44,7 @@ export interface ProposalAttachment {
 }
 
 export interface ProposalActionPayload {
+  [key: string]: string | number | undefined;
   target?: string;
   newValue?: number;
   duration?: number;
@@ -122,6 +123,18 @@ export class GovernanceProposal {
   /** Set when proposal is successfully executed */
   @Column({ type: 'timestamptz', nullable: true })
   executedAt: Date | null;
+
+  /** Set when proposal is cancelled by admin */
+  @Column({ type: 'timestamptz', nullable: true })
+  cancelledAt: Date | null;
+
+  /** Admin who cancelled the proposal */
+  @Column({ type: 'uuid', nullable: true })
+  cancelledBy: string | null;
+
+  /** Reason for cancellation */
+  @Column({ type: 'text', nullable: true })
+  cancellationReason: string | null;
 
   @CreateDateColumn()
   createdAt: Date;

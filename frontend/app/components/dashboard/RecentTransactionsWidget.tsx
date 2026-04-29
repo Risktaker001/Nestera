@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import { Inbox } from "lucide-react";
 
 interface Transaction {
   id: number;
@@ -161,6 +163,8 @@ const RecentTransactionsWidget: React.FC = () => {
     },
   ];
 
+  const hasTransactions = mockTransactions.length > 0;
+
   return (
     <div
       style={{
@@ -178,11 +182,29 @@ const RecentTransactionsWidget: React.FC = () => {
         <h2 className="text-lg font-bold text-[#dff]">Recent Transactions</h2>
       </div>
 
-      <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-        {mockTransactions.map((transaction) => (
-          <TransactionRow key={transaction.id} transaction={transaction} />
-        ))}
-      </div>
+      {hasTransactions ? (
+        <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+          {mockTransactions.map((transaction) => (
+            <TransactionRow key={transaction.id} transaction={transaction} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 px-6 py-12 text-center">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-cyan-500/10 text-cyan-300">
+            <Inbox size={24} />
+          </div>
+          <h3 className="text-lg font-semibold text-[#dff]">Nothing to show yet</h3>
+          <p className="mt-2 max-w-md text-sm text-[#90b4b4]">
+            Your deposits, swaps, withdrawals, and yield rewards will appear here once activity starts.
+          </p>
+          <Link
+            href="/dashboard/transactions"
+            className="mt-5 rounded-xl bg-cyan-500 px-5 py-2.5 font-semibold text-[#061a1a] no-underline hover:bg-cyan-400"
+          >
+            View transaction center
+          </Link>
+        </div>
+      )}
 
       <div className="mt-4 pt-3 border-t border-white/5">
         <a

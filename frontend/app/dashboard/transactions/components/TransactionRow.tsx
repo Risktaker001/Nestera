@@ -74,9 +74,11 @@ export default function TransactionRow({
   if (isPositive === false) amountStyle = 'text-[#fb7185]';
 
   return (
-    <div
-      className="grid grid-cols-1 gap-2 border-b border-white/5 px-4 py-4 text-sm transition-colors hover:bg-white/5 md:grid-cols-12 md:items-center md:gap-3 md:px-5 md:text-[15px]"
+    <button
+      type="button"
+      className="grid w-full grid-cols-1 gap-2 border-b border-white/5 px-4 py-4 text-left text-sm transition-colors hover:bg-white/5 focus:bg-white/5 md:grid-cols-12 md:items-center md:gap-3 md:px-5 md:text-[15px]"
       onClick={() => onClick?.(transactionId)}
+      aria-label={`Open transaction ${transactionId} (${typeInfo.label})`}
     >
       <div className="md:col-span-2">
         <p className="text-[#e2f8f8] font-semibold">{date}</p>
@@ -108,6 +110,6 @@ export default function TransactionRow({
           {statusInfo.label}
         </span>
       </div>
-    </div>
+    </button>
   );
 }

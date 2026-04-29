@@ -9,7 +9,6 @@ import {
   ExternalLink,
   HelpCircle,
   LogOut,
-  Search,
   Wallet,
 } from "lucide-react";
 import ThemeToggle from "../ThemeToggle";
@@ -17,9 +16,9 @@ import { useWallet } from "../../context/WalletContext";
 import NetworkIndicator from "./NetworkIndicator";
 import { useToast } from "../../context/ToastContext";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import GlobalSearch from "./GlobalSearch";
 
 const actionButtons = [
-  { Icon: Search, label: "Search" },
   { Icon: Bell, label: "Notifications" },
   { Icon: HelpCircle, label: "Help" },
 ];
@@ -124,6 +123,9 @@ const TopNav: React.FC = () => {
         </div>
 
         <div className="ml-auto flex items-center gap-[10px]">
+          <div className="hidden xl:block">
+            <GlobalSearch />
+          </div>
           <div className="mr-2 flex items-center gap-2">
             <ThemeToggle compact />
             <div className="hidden items-center gap-2 lg:flex">

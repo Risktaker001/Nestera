@@ -72,25 +72,8 @@ export class DepositHandler {
         return;
       }
 
-      await txRepo.save(
-        txRepo.create({
-          userId: user.id,
-          type: LedgerTransactionType.DEPOSIT,
-          amount: payload.amount,
-          publicKey: payload.publicKey,
-          eventId,
-          transactionHash:
-            typeof event.txHash === 'string' ? event.txHash : null,
-          ledgerSequence:
-            typeof event.ledger === 'number' ? String(event.ledger) : null,
-          metadata: {
-            topic: event.topic,
-            rawValueType: typeof event.value,
-          },
-        }),
-      );
-
       const amountAsNumber = Number(payload.amount);
+      let subscriptionCreated = false;
 
       let subscription = await subRepo.findOne({
         where: {
@@ -124,11 +107,32 @@ export class DepositHandler {
           startDate: new Date(),
           endDate: null,
         });
+        subscriptionCreated = true;
       } else {
         subscription.amount = Number(subscription.amount) + amountAsNumber;
       }
 
-      await subRepo.save(subscription);
+      subscription = await subRepo.save(subscription);
+
+      await txRepo.save(
+        txRepo.create({
+          userId: user.id,
+          type: LedgerTransactionType.DEPOSIT,
+          amount: payload.amount,
+          publicKey: payload.publicKey,
+          eventId,
+          transactionHash:
+            typeof event.txHash === 'string' ? event.txHash : null,
+          ledgerSequence:
+            typeof event.ledger === 'number' ? String(event.ledger) : null,
+          metadata: {
+            topic: event.topic,
+            rawValueType: typeof event.value,
+            subscriptionId: subscription.id,
+            subscriptionCreated,
+          },
+        }),
+      );
     });
 
     return true;

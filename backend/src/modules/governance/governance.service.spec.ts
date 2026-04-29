@@ -17,6 +17,7 @@ import { Vote, VoteDirection } from './entities/vote.entity';
 import { Delegation } from './entities/delegation.entity';
 import { TransactionsService } from '../transactions/transactions.service';
 import { LedgerTransaction } from '../blockchain/entities/transaction.entity';
+import { User } from '../user/entities/user.entity';
 
 describe('GovernanceService', () => {
   let service: GovernanceService;
@@ -24,6 +25,7 @@ describe('GovernanceService', () => {
   let stellarService: {
     getDelegationForUser: jest.Mock;
     getRpcServer: jest.Mock;
+    invokeContractWrite: jest.Mock;
   };
   let savingsService: { getUserVaultBalance: jest.Mock };
   let eventEmitter: { emit: jest.Mock };
@@ -43,6 +45,9 @@ describe('GovernanceService', () => {
     create: jest.Mock;
     save: jest.Mock;
   };
+  let userRepo: {
+    find: jest.Mock;
+  };
   let transactionsService: any;
   let transactionRepo: { createQueryBuilder: jest.Mock };
   let delegationRepo: {
@@ -59,6 +64,7 @@ describe('GovernanceService', () => {
       getRpcServer: jest.fn().mockReturnValue({
         getLatestLedger: jest.fn().mockResolvedValue({ sequence: 1000 }),
       }),
+      invokeContractWrite: jest.fn(),
     };
     savingsService = { getUserVaultBalance: jest.fn() };
     eventEmitter = { emit: jest.fn() };
@@ -77,6 +83,9 @@ describe('GovernanceService', () => {
       findAndCount: jest.fn(),
       create: jest.fn(),
       save: jest.fn(),
+    };
+    userRepo = {
+      find: jest.fn().mockResolvedValue([]),
     };
     transactionsService = {};
     transactionRepo = { createQueryBuilder: jest.fn() };
@@ -107,6 +116,10 @@ describe('GovernanceService', () => {
         {
           provide: getRepositoryToken(Delegation),
           useValue: delegationRepo,
+        },
+        {
+          provide: getRepositoryToken(User),
+          useValue: userRepo,
         },
       ],
     }).compile();
@@ -176,6 +189,7 @@ describe('GovernanceService', () => {
         publicKey: 'GUSERPUBLICKEY123',
       });
       savingsService.getUserVaultBalance.mockResolvedValue(2_000_000_000);
+      userRepo.find.mockResolvedValue([{ id: 'user-1' }]);
       proposalRepo.findOne.mockResolvedValue({ onChainId: 7 });
       proposalRepo.create.mockImplementation((input) => ({
         id: 'proposal-1',
@@ -230,7 +244,7 @@ describe('GovernanceService', () => {
           type: ProposalType.RATE_CHANGE,
         }),
       );
-      expect(result.requiredQuorum).toBe('5000.00000000');
+      expect(result.requiredQuorum).toBe('100.00000000');
       expect(result.proposalThreshold).toBe('100.00000000');
       expect(result.canEdit).toBe(true);
     });
@@ -433,6 +447,340 @@ describe('GovernanceService', () => {
       const result = await service.delegateVotingPower('user-1', 'DELEGATE_PK');
       expect(result.transactionHash).toBeDefined();
       expect(result.transactionHash).toMatch(/^0x/);
+    });
+  });
+
+  describe('executeProposal', () => {
+    const OLD_ENV = process.env;
+
+    beforeEach(() => {
+      process.env = {
+        ...OLD_ENV,
+        GOVERNANCE_EXECUTOR_SECRET_KEY: 'S_TEST_EXECUTOR_SECRET',
+        GOVERNANCE_EXECUTION_CONTRACT_ID: 'C_EXECUTION',
+        GOVERNANCE_TREASURY_CONTRACT_ID: 'C_TREASURY',
+      };
+    });
+
+    afterEach(() => {
+      process.env = OLD_ENV;
+    });
+
+    it('executes queued rate-change proposal on-chain and marks executed', async () => {
+      const proposal = {
+        id: 'proposal-1',
+        onChainId: 9,
+        title: 'Rate update',
+        description: 'Raise flexi rate',
+        category: ProposalCategory.TECHNICAL,
+        type: ProposalType.RATE_CHANGE,
+        action: { target: 'flexiRate', newValue: 12 },
+        attachments: [],
+        status: ProposalStatus.QUEUED,
+        timelockEndsAt: new Date(Date.now() - 60_000),
+        proposer: 'GPROPOSER',
+        createdByUserId: 'user-1',
+        startBlock: 900,
+        endBlock: 1000,
+        requiredQuorum: '1000.00000000',
+        quorumBps: 5000,
+        proposalThreshold: '100.00000000',
+        executedAt: null,
+        createdAt: new Date('2026-03-30T12:00:00.000Z'),
+        updatedAt: new Date('2026-03-30T12:00:00.000Z'),
+      };
+      proposalRepo.findOneBy.mockResolvedValue(proposal);
+      stellarService.invokeContractWrite.mockResolvedValue({
+        hash: 'tx-hash',
+        status: 'SUCCESS',
+      });
+      proposalRepo.save.mockImplementation(async (input) => input);
+
+      const result = await service.executeProposal('proposal-1', 'admin-1');
+
+      expect(stellarService.invokeContractWrite).toHaveBeenCalledWith(
+        'C_EXECUTION',
+        'set_rate',
+        'S_TEST_EXECUTOR_SECRET',
+        ['flexiRate', 12],
+      );
+      expect(proposalRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: ProposalStatus.EXECUTED,
+          executedAt: expect.any(Date),
+        }),
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'governance.proposal.executed',
+        expect.objectContaining({
+          proposalId: 'proposal-1',
+          transactionHash: 'tx-hash',
+          transactionStatus: 'SUCCESS',
+        }),
+      );
+      expect(result.status).toBe(ProposalStatus.EXECUTED);
+    });
+
+    it('keeps proposal queued and raises when on-chain execution fails', async () => {
+      const proposal = {
+        id: 'proposal-2',
+        onChainId: 10,
+        title: 'Pause protocol',
+        description: 'Emergency pause',
+        category: ProposalCategory.GOVERNANCE,
+        type: ProposalType.PAUSE,
+        action: { reason: 'incident' },
+        attachments: [],
+        status: ProposalStatus.QUEUED,
+        timelockEndsAt: new Date(Date.now() - 60_000),
+        proposer: 'GPROPOSER',
+        createdByUserId: 'user-1',
+        startBlock: 900,
+        endBlock: 1000,
+        requiredQuorum: '1000.00000000',
+        quorumBps: 5000,
+        proposalThreshold: '100.00000000',
+        executedAt: null,
+        createdAt: new Date('2026-03-30T12:00:00.000Z'),
+        updatedAt: new Date('2026-03-30T12:00:00.000Z'),
+      };
+      proposalRepo.findOneBy.mockResolvedValue(proposal);
+      stellarService.invokeContractWrite.mockRejectedValue(
+        new Error('tx failed'),
+      );
+
+      await expect(
+        service.executeProposal('proposal-2', 'admin-1'),
+      ).rejects.toThrow('Failed to execute proposal on-chain');
+      expect(proposalRepo.save).not.toHaveBeenCalled();
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'governance.proposal.execution_failed',
+        expect.objectContaining({
+          proposalId: 'proposal-2',
+          reason: 'tx failed',
+        }),
+      );
+    });
+  });
+  describe('delegate (loop detection)', () => {
+    it('rejects delegation to self', async () => {
+      userService.findById.mockResolvedValue({
+        id: 'user-1',
+        publicKey: 'GUSERPUBLICKEY123',
+      });
+
+      await expect(
+        service.delegate('user-1', 'GUSERPUBLICKEY123'),
+      ).rejects.toThrow('Cannot delegate to yourself');
+    });
+
+    it('rejects direct loop (A→B→A)', async () => {
+      userService.findById.mockResolvedValue({
+        id: 'user-1',
+        publicKey: 'GA',
+      });
+      // Simulate that GA already delegates to GB
+      delegationRepo.findOne.mockImplementation(({ where }) => {
+        if (where.delegatorAddress === 'GA') {
+          return Promise.resolve({
+            delegatorAddress: 'GA',
+            delegateAddress: 'GB',
+          });
+        }
+        if (where.delegatorAddress === 'GB' && where.delegateAddress === 'GA') {
+          return Promise.resolve({
+            delegatorAddress: 'GB',
+            delegateAddress: 'GA',
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      // Try to delegate from GB to GA (would create loop)
+      userService.findById.mockResolvedValue({
+        id: 'user-2',
+        publicKey: 'GB',
+      });
+      await expect(service.delegate('user-2', 'GA')).rejects.toThrow(
+        'Delegation loop detected in chain',
+      );
+    });
+
+    it('rejects long chain loop (A→B→C→A)', async () => {
+      // User A delegates to B
+      userService.findById.mockResolvedValue({
+        id: 'user-a',
+        publicKey: 'GA',
+      });
+      delegationRepo.findOne.mockImplementation(({ where }) => {
+        if (where.delegatorAddress === 'GA') {
+          return Promise.resolve({
+            delegatorAddress: 'GA',
+            delegateAddress: 'GB',
+          });
+        }
+        if (where.delegatorAddress === 'GB') {
+          return Promise.resolve({
+            delegatorAddress: 'GB',
+            delegateAddress: 'GC',
+          });
+        }
+        if (where.delegatorAddress === 'GC') {
+          return Promise.resolve({
+            delegatorAddress: 'GC',
+            delegateAddress: 'GA',
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      // Try to delegate from GC to GA (would create A→B→C→A loop)
+      userService.findById.mockResolvedValue({
+        id: 'user-c',
+        publicKey: 'GC',
+      });
+      await expect(service.delegate('user-c', 'GA')).rejects.toThrow(
+        'Delegation loop detected in chain',
+      );
+    });
+
+    it('rejects delegation exceeding max chain depth', async () => {
+      userService.findById.mockResolvedValue({
+        id: 'user-1',
+        publicKey: 'GF',
+      });
+      // Simulate a chain of 5 delegations (A→B→C→D→E→F)
+      delegationRepo.findOne.mockImplementation(({ where }) => {
+        const chains: Record<string, string> = {
+          GA: 'GB',
+          GB: 'GC',
+          GC: 'GD',
+          GD: 'GE',
+          GE: 'GF',
+        };
+        const delegate = chains[where.delegatorAddress as string];
+        if (delegate) {
+          return Promise.resolve({
+            delegatorAddress: where.delegatorAddress,
+            delegateAddress: delegate,
+          });
+        }
+        return Promise.resolve(null);
+      });
+      delegationRepo.find.mockImplementation(({ where }) => {
+        const incoming: Record<string, string[]> = {
+          GB: ['GA'],
+          GC: ['GB'],
+          GD: ['GC'],
+          GE: ['GD'],
+          GF: ['GE'],
+        };
+        return Promise.resolve(
+          (incoming[where.delegateAddress as string] ?? []).map(
+            (delegatorAddress) => ({
+              delegatorAddress,
+              delegateAddress: where.delegateAddress,
+            }),
+          ),
+        );
+      });
+
+      // Try to delegate from GF to GG (would be 6th level)
+      await expect(service.delegate('user-f', 'GG')).rejects.toThrow(
+        'Delegation chain would exceed maximum depth of 5',
+      );
+    });
+
+    it('allows valid delegation with no loop and within depth limit', async () => {
+      userService.findById.mockResolvedValue({
+        id: 'user-1',
+        publicKey: 'GA',
+      });
+      delegationRepo.findOne.mockResolvedValue(null);
+      delegationRepo.upsert.mockResolvedValue(undefined);
+      eventEmitter.emit.mockClear();
+
+      const result = await service.delegate('user-1', 'GB');
+
+      expect(result.transactionHash).toBeDefined();
+      expect(delegationRepo.upsert).toHaveBeenCalledWith(
+        { delegatorAddress: 'GA', delegateAddress: 'GB' },
+        ['delegatorAddress'],
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        'governance.delegation.changed',
+        { delegator: 'GA', delegate: 'GB' },
+      );
+    });
+  });
+
+  describe('getDelegationChain', () => {
+    it('returns empty chain for user with no delegation', async () => {
+      userService.findById.mockResolvedValue({
+        id: 'user-1',
+        publicKey: 'GA',
+      });
+      delegationRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.getDelegationChain('user-1');
+
+      expect(result).toEqual({ chain: [], depth: 0, hasLoop: false });
+    });
+
+    it('returns delegation chain with depth and loop detection', async () => {
+      userService.findById.mockResolvedValue({
+        id: 'user-1',
+        publicKey: 'GA',
+      });
+      delegationRepo.findOne.mockImplementation(({ where }) => {
+        if (where.delegatorAddress === 'GA') {
+          return Promise.resolve({
+            delegatorAddress: 'GA',
+            delegateAddress: 'GB',
+          });
+        }
+        if (where.delegatorAddress === 'GB') {
+          return Promise.resolve({
+            delegatorAddress: 'GB',
+            delegateAddress: 'GC',
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const result = await service.getDelegationChain('user-1');
+
+      expect(result.chain).toEqual(['GB', 'GC']);
+      expect(result.depth).toBe(2);
+      expect(result.hasLoop).toBe(false);
+    });
+
+    it('detects loop in delegation chain', async () => {
+      userService.findById.mockResolvedValue({
+        id: 'user-1',
+        publicKey: 'GA',
+      });
+      delegationRepo.findOne.mockImplementation(({ where }) => {
+        if (where.delegatorAddress === 'GA') {
+          return Promise.resolve({
+            delegatorAddress: 'GA',
+            delegateAddress: 'GB',
+          });
+        }
+        if (where.delegatorAddress === 'GB') {
+          return Promise.resolve({
+            delegatorAddress: 'GB',
+            delegateAddress: 'GA',
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      const result = await service.getDelegationChain('user-1');
+
+      expect(result.chain).toEqual(['GB', 'GA']);
+      expect(result.depth).toBe(2);
+      expect(result.hasLoop).toBe(true);
     });
   });
 });

@@ -12,6 +12,7 @@ import { ProcessedStellarEvent } from './entities/processed-event.entity';
 import { LedgerTransaction } from './entities/transaction.entity';
 import { DeadLetterEvent } from './entities/dead-letter-event.entity';
 import { IndexerState } from './entities/indexer-state.entity';
+import { AuditLog } from '../../common/entities/audit-log.entity';
 import { MedicalClaim } from '../claims/entities/medical-claim.entity';
 import { User } from '../user/entities/user.entity';
 import { UserSubscription } from '../savings/entities/user-subscription.entity';
@@ -37,6 +38,7 @@ import { ProtocolMetrics } from '../admin-analytics/entities/protocol-metrics.en
       LedgerTransaction,
       DeadLetterEvent,
       IndexerState,
+      AuditLog,
       User,
       UserSubscription,
       SavingsProduct,
