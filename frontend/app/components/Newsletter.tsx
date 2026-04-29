@@ -1,16 +1,60 @@
 "use client";
 
 import React, { useState } from "react";
+import { useToast } from "../context/ToastContext";
 
 const Newsletter: React.FC = () => {
   const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const toast = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) {
-      console.log("Newsletter signup:", email);
-      // Here you would typically send the email to your backend
+    const normalizedEmail = email.trim();
+
+    if (!normalizedEmail) {
+      toast.error("Email is required", "Please enter a valid email address.");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          toast.info(
+            "Already subscribed",
+            "This email is already on our newsletter list.",
+          );
+          return;
+        }
+
+        toast.error(
+          "Subscription failed",
+          payload?.message ?? "Unable to subscribe right now. Please try again.",
+        );
+        return;
+      }
+
+      toast.success("Subscribed", "You have been added to the newsletter list.");
       setEmail("");
+    } catch {
+      toast.error(
+        "Network error",
+        "Could not reach the newsletter service. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -36,13 +80,15 @@ const Newsletter: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={isSubmitting}
             />
           </div>
           <button
             type="submit"
+            disabled={isSubmitting}
             className="px-6 py-3 bg-[#00d1c1] text-[#020c0c] border-none rounded-md text-sm font-semibold cursor-pointer transition-all duration-200 hover:opacity-90 active:scale-[0.98]"
           >
-            Submit
+            {isSubmitting ? "Submitting..." : "Submit"}
           </button>
         </form>
       </div>
