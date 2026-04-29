@@ -1,6 +1,7 @@
 import React from "react";
 import { render, screen, act, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { WalletProvider } from "../context/WalletContext";
 import { useWallet } from "../context/WalletContext";
 
@@ -22,7 +23,12 @@ jest.mock("@stellar/stellar-sdk", () => ({
     Server: jest.fn().mockImplementation(() => ({
       loadAccount: jest.fn().mockResolvedValue({
         balances: [
-          { asset_type: "native", balance: "100.0000000", asset_code: undefined, asset_issuer: undefined },
+          {
+            asset_type: "native",
+            balance: "100.0000000",
+            asset_code: undefined,
+            asset_issuer: undefined,
+          },
         ],
       }),
     })),
@@ -32,27 +38,51 @@ jest.mock("@stellar/stellar-sdk", () => ({
 // Mock fetch for CoinGecko price API
 global.fetch = jest.fn().mockResolvedValue({
   json: async () => ({ stellar: { usd: 0.1 } }),
+  ok: true,
 } as any);
+
+function TestProviders({ children }: { children: React.ReactNode }) {
+  const queryClient = React.useMemo(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+          },
+        },
+      }),
+    [],
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WalletProvider>{children}</WalletProvider>
+    </QueryClientProvider>
+  );
+}
 
 // Consumer component to test context values
 function WalletConsumer() {
   const wallet = useWallet();
   return (
     <div>
-      <span data-testid="connected">{wallet.isConnected ? "connected" : "disconnected"}</span>
+      <span data-testid="connected">
+        {wallet.isConnected ? "connected" : "disconnected"}
+      </span>
       <span data-testid="address">{wallet.address ?? "no-address"}</span>
       <span data-testid="loading">{wallet.isLoading ? "loading" : "idle"}</span>
       <button onClick={wallet.connect}>Connect</button>
       <button onClick={wallet.disconnect}>Disconnect</button>
+      <button onClick={wallet.fetchBalances}>Refresh balances</button>
     </div>
   );
 }
 
 function renderWallet() {
   return render(
-    <WalletProvider>
+    <TestProviders>
       <WalletConsumer />
-    </WalletProvider>
+    </TestProviders>,
   );
 }
 
@@ -80,14 +110,18 @@ describe("WalletContext", () => {
   });
 
   it("throws when useWallet is used outside WalletProvider", () => {
-    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const consoleSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
 
     function BadComponent() {
       useWallet();
       return <div />;
     }
 
-    expect(() => render(<BadComponent />)).toThrow("useWallet must be used within WalletProvider");
+    expect(() => render(<BadComponent />)).toThrow(
+      "useWallet must be used within WalletProvider",
+    );
     consoleSpy.mockRestore();
   });
 
@@ -102,6 +136,30 @@ describe("WalletContext", () => {
       expect(screen.getByTestId("address")).toHaveTextContent("GABC123TEST456");
       expect(screen.getByTestId("connected")).toHaveTextContent("connected");
     });
+  });
+
+  it("reuses cached price data across balance refreshes", async () => {
+    renderWallet();
+
+    await act(async () => {
+      screen.getByText("Connect").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connected")).toHaveTextContent("connected");
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      screen.getByText("Refresh balances").click();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("connected")).toHaveTextContent("connected");
+    });
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("disconnects wallet and resets state", async () => {

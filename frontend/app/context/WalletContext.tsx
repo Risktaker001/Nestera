@@ -9,6 +9,11 @@ import React, {
   useRef,
 } from "react";
 import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
   isConnected,
   getAddress,
   getNetwork,
@@ -16,6 +21,14 @@ import {
   WatchWalletChanges,
 } from "@stellar/freighter-api";
 import { Horizon } from "@stellar/stellar-sdk";
+import {
+  COINGECKO_PRICE_GC_TIME,
+  COINGECKO_PRICE_STALE_TIME,
+  coingeckoPriceQueryKey,
+  walletBalanceQueryKey,
+  WALLET_BALANCE_GC_TIME,
+  WALLET_BALANCE_STALE_TIME,
+} from "@/app/lib/query";
 
 /** Matches the CallbackParams shape from @stellar/freighter-api's WatchWalletChanges. */
 interface WalletChangeEvent {
@@ -60,6 +73,61 @@ const COINGECKO_IDS: Record<string, string> = {
   AQUA: "aqua",
 };
 
+interface CoingeckoPrices {
+  [assetId: string]: {
+    usd?: number;
+  };
+}
+
+interface WalletBalanceSnapshot {
+  balances: Balance[];
+  totalUsdValue: number;
+  lastBalanceSync: number;
+}
+
+async function fetchCoingeckoPrices(): Promise<CoingeckoPrices> {
+  const assetIds = Object.values(COINGECKO_IDS).join(",");
+  const response = await fetch(
+    `https://api.coingecko.com/api/v3/simple/price?ids=${assetIds}&vs_currencies=usd`,
+  );
+
+  if (!response.ok) {
+    throw new Error("Unable to load price data from CoinGecko.");
+  }
+
+  return response.json();
+}
+
+function buildBalanceSnapshot(
+  accountBalances: any[],
+  prices: CoingeckoPrices,
+): WalletBalanceSnapshot {
+  let totalUsdValue = 0;
+
+  const balances: Balance[] = accountBalances.map((balance) => {
+    const code = balance.asset_type === "native" ? "XLM" : balance.asset_code;
+    const coingeckoId = COINGECKO_IDS[code];
+    const price = prices[coingeckoId]?.usd || (code === "USDC" ? 1 : 0);
+    const usdValue = parseFloat(balance.balance) * price;
+
+    totalUsdValue += usdValue;
+
+    return {
+      asset_code: code,
+      balance: balance.balance,
+      asset_type: balance.asset_type,
+      asset_issuer: balance.asset_issuer,
+      usd_value: usdValue,
+    };
+  });
+
+  return {
+    balances,
+    totalUsdValue,
+    lastBalanceSync: Date.now(),
+  };
+}
+
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<WalletState>({
     address: null,
@@ -74,8 +142,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     lastBalanceSync: null,
   });
 
-  const refreshInterval = useRef<NodeJS.Timeout | null>(null);
   const networkWatcher = useRef<WatchWalletChanges | null>(null);
+  const queryClient = useQueryClient();
 
   const getHorizonUrl = (network: string | null) => {
     return network?.toLowerCase() === "public"
@@ -83,58 +151,40 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       : "https://horizon-testnet.stellar.org";
   };
 
-  const fetchBalances = useCallback(async () => {
-    if (!state.address) return;
+  const balanceQuery = useQuery<WalletBalanceSnapshot>({
+    queryKey: walletBalanceQueryKey(state.address, state.network),
+    enabled: Boolean(state.address),
+    queryFn: async () => {
+      if (!state.address) {
+        throw new Error("Wallet address is missing.");
+      }
 
-    setState((s) => ({ ...s, isBalancesLoading: true, balanceError: null }));
-
-    try {
       const horizonUrl = getHorizonUrl(state.network);
       const server = new Horizon.Server(horizonUrl);
       const account = await server.loadAccount(state.address);
 
-      // Fetch prices
-      const assetIds = Object.values(COINGECKO_IDS).join(",");
-      const priceRes = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${assetIds}&vs_currencies=usd`
-      );
-      const prices = await priceRes.json();
-
-      let totalUsd = 0;
-      const balances: Balance[] = account.balances.map((b: any) => {
-        const code = b.asset_type === "native" ? "XLM" : b.asset_code;
-        const coingeckoId = COINGECKO_IDS[code];
-        const price = prices[coingeckoId]?.usd || (code === "USDC" ? 1 : 0);
-        const usdValue = parseFloat(b.balance) * price;
-        totalUsd += usdValue;
-
-        return {
-          asset_code: code,
-          balance: b.balance,
-          asset_type: b.asset_type,
-          asset_issuer: b.asset_issuer,
-          usd_value: usdValue,
-        };
+      const prices = await queryClient.fetchQuery({
+        queryKey: coingeckoPriceQueryKey,
+        queryFn: fetchCoingeckoPrices,
+        staleTime: COINGECKO_PRICE_STALE_TIME,
+        gcTime: COINGECKO_PRICE_GC_TIME,
       });
 
-      setState((s) => ({
-        ...s,
-        balances,
-        totalUsdValue: totalUsd,
-        isBalancesLoading: false,
-        balanceError: null,
-        lastBalanceSync: Date.now(),
-      }));
-    } catch (err) {
-      console.error("Failed to fetch balances:", err);
-      setState((s) => ({
-        ...s,
-        isBalancesLoading: false,
-        balanceError:
-          err instanceof Error ? err.message : "Unable to refresh wallet balances.",
-      }));
-    }
-  }, [state.address, state.network]);
+      return buildBalanceSnapshot(account.balances as any[], prices);
+    },
+    staleTime: WALLET_BALANCE_STALE_TIME,
+    gcTime: WALLET_BALANCE_GC_TIME,
+    refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    placeholderData: keepPreviousData,
+  });
+
+  const fetchBalances = useCallback(async () => {
+    if (!state.address) return;
+
+    await balanceQuery.refetch();
+  }, [balanceQuery, state.address]);
 
   // Restore session on mount
   useEffect(() => {
@@ -163,33 +213,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  // Fetch balances when address changes
   useEffect(() => {
-    if (state.address) {
-      fetchBalances();
-
-      // Real-time updates every 30 seconds
-      if (refreshInterval.current) clearInterval(refreshInterval.current);
-      refreshInterval.current = setInterval(fetchBalances, 30000);
-    } else {
-      if (refreshInterval.current) {
-        clearInterval(refreshInterval.current);
-        refreshInterval.current = null;
-      }
-      setState((s) => ({
-        ...s,
-        balances: [],
-        totalUsdValue: 0,
-        isBalancesLoading: false,
-        balanceError: null,
-        lastBalanceSync: null,
-      }));
+    if (state.isConnected || state.address) {
+      return;
     }
 
-    return () => {
-      if (refreshInterval.current) clearInterval(refreshInterval.current);
-    };
-  }, [state.address, fetchBalances]);
+    queryClient.removeQueries({ queryKey: ["wallet-balances"] });
+  }, [queryClient, state.address, state.isConnected]);
 
   // Watch for network changes when wallet is connected
   useEffect(() => {
@@ -270,6 +300,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const disconnect = useCallback(() => {
+    queryClient.removeQueries({ queryKey: ["wallet-balances"] });
     setState((s) => ({
       ...s,
       address: null,
@@ -283,10 +314,32 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       isBalancesLoading: false,
       lastBalanceSync: null,
     }));
-  }, []);
+  }, [queryClient]);
+
+  const balances = balanceQuery.data?.balances ?? [];
+  const totalUsdValue = balanceQuery.data?.totalUsdValue ?? 0;
+  const lastBalanceSync = balanceQuery.data?.lastBalanceSync ?? null;
+  const isBalancesLoading = Boolean(state.address) && balanceQuery.isFetching;
+  const balanceError = balanceQuery.error
+    ? balanceQuery.error instanceof Error
+      ? balanceQuery.error.message
+      : "Unable to refresh wallet balances."
+    : null;
 
   return (
-    <WalletContext.Provider value={{ ...state, connect, disconnect, fetchBalances }}>
+    <WalletContext.Provider
+      value={{
+        ...state,
+        balances,
+        totalUsdValue,
+        lastBalanceSync,
+        isBalancesLoading,
+        balanceError,
+        connect,
+        disconnect,
+        fetchBalances,
+      }}
+    >
       {children}
     </WalletContext.Provider>
   );

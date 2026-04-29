@@ -1,6 +1,33 @@
 "use client";
 
 import React from "react";
+import { useLocale } from "next-intl";
+
+const copy = {
+  en: {
+    description: "Empowering global savings through decentralized technology.",
+    sections: {
+      product: "Product",
+      company: "Company",
+      community: "Community",
+    },
+    copyright: "© 2025 Nestera. All rights reserved.",
+    terms: "Terms of Service",
+    privacy: "Privacy Policy",
+  },
+  es: {
+    description:
+      "Impulsando el ahorro global mediante tecnología descentralizada.",
+    sections: {
+      product: "Producto",
+      company: "Empresa",
+      community: "Comunidad",
+    },
+    copyright: "© 2025 Nestera. Todos los derechos reservados.",
+    terms: "Términos del servicio",
+    privacy: "Política de privacidad",
+  },
+} as const;
 
 const productLinks = [
   { label: "Flexible Savings", href: "#" },
@@ -24,6 +51,9 @@ const communityLinks = [
 ];
 
 const Footer: React.FC = () => {
+  const locale = useLocale() as keyof typeof copy;
+  const content = copy[locale] ?? copy.en;
+
   return (
     <footer
       className="relative w-full bg-[#061a1a] font-['Inter',sans-serif] pt-16 px-12 pb-8 max-md:py-12 max-md:px-6 max-md:pb-6 max-[480px]:pt-10 max-[480px]:px-5 max-[480px]:pb-5"
@@ -76,7 +106,7 @@ const Footer: React.FC = () => {
               <span className="leading-none">Nestera</span>
             </a>
             <p className="text-sm font-normal leading-relaxed text-[rgba(180,210,210,0.75)] max-w-[280px] max-md:max-w-full">
-              Empowering global savings through decentralized technology.
+              {content.description}
             </p>
           </div>
 
@@ -86,7 +116,7 @@ const Footer: React.FC = () => {
           >
             <div className="min-w-[120px] max-md:min-w-0">
               <h3 className="text-[0.85rem] font-bold text-white normal-case tracking-normal mb-4 leading-tight">
-                Product
+                {content.sections.product}
               </h3>
               <ul className="list-none p-0 m-0 flex flex-col gap-2.5">
                 {productLinks.map((item) => (
@@ -103,7 +133,7 @@ const Footer: React.FC = () => {
             </div>
             <div className="min-w-[120px] max-md:min-w-0">
               <h3 className="text-[0.85rem] font-bold text-white normal-case tracking-normal mb-4 leading-tight">
-                Company
+                {content.sections.company}
               </h3>
               <ul className="list-none p-0 m-0 flex flex-col gap-2.5">
                 {companyLinks.map((item) => (
@@ -120,7 +150,7 @@ const Footer: React.FC = () => {
             </div>
             <div className="min-w-[120px] max-md:min-w-0">
               <h3 className="text-[0.85rem] font-bold text-white normal-case tracking-normal mb-4 leading-tight">
-                Community
+                {content.sections.community}
               </h3>
               <ul className="list-none p-0 m-0 flex flex-col gap-2.5">
                 {communityLinks.map((item) => (
@@ -147,20 +177,20 @@ const Footer: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-4 max-md:flex-col max-md:items-start">
           <div className="flex flex-wrap items-center gap-6 max-md:flex-col max-md:items-start max-md:gap-4">
             <p className="text-xs font-normal text-[rgba(180,210,210,0.65)] m-0">
-              © 2025 Nestera. All rights reserved.
+              {content.copyright}
             </p>
             <div className="flex items-center gap-4">
               <a
                 href="/terms"
                 className="text-xs font-normal text-[rgba(180,210,210,0.65)] no-underline transition-colors duration-200 hover:text-[#00d4c0] focus-visible:outline-2 focus-visible:outline-[#00d4c0] focus-visible:outline-offset-2 rounded-sm"
               >
-                Terms of Service
+                {content.terms}
               </a>
               <a
                 href="/privacy"
                 className="text-xs font-normal text-[rgba(180,210,210,0.65)] no-underline transition-colors duration-200 hover:text-[#00d4c0] focus-visible:outline-2 focus-visible:outline-[#00d4c0] focus-visible:outline-offset-2 rounded-sm"
               >
-                Privacy Policy
+                {content.privacy}
               </a>
             </div>
             <div className="flex items-center gap-4">
