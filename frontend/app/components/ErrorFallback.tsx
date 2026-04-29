@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, House, RefreshCw } from "lucide-react";
+import { captureException } from "../lib/monitoring";
 
 type ErrorFallbackProps = {
   error: Error & { digest?: string };
@@ -10,6 +11,7 @@ type ErrorFallbackProps = {
   homeHref?: string;
   title?: string;
   description?: string;
+  boundaryName?: string;
 };
 
 export default function ErrorFallback({
@@ -18,10 +20,20 @@ export default function ErrorFallback({
   homeHref = "/",
   title = "Something went wrong",
   description = "We hit an unexpected error while rendering this view. You can retry or return to a safe page.",
+  boundaryName = "app.error_boundary",
 }: ErrorFallbackProps) {
   useEffect(() => {
     console.error("Nestera React error boundary caught an error:", error);
-  }, [error]);
+    captureException(error, {
+      boundaryName,
+      tags: { digest: error.digest },
+      data: {
+        boundaryName,
+        digest: error.digest,
+        path: typeof window !== "undefined" ? window.location.pathname : undefined,
+      },
+    });
+  }, [boundaryName, error]);
 
   return (
     <main className="min-h-screen bg-[var(--color-background)] px-4 py-16 text-[var(--color-text)]">

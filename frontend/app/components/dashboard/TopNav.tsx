@@ -17,6 +17,7 @@ import NetworkIndicator from "./NetworkIndicator";
 import { useToast } from "../../context/ToastContext";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import GlobalSearch from "./GlobalSearch";
+import { trackUserAction } from "../../lib/monitoring";
 
 const actionButtons = [
   { Icon: Bell, label: "Notifications" },
@@ -55,6 +56,7 @@ const TopNav: React.FC = () => {
     }
 
     navigator.clipboard.writeText(address);
+    trackUserAction("dashboard.topnav.copy_address", { network });
     setCopied(true);
     toast.success("Address copied", "Wallet address copied to clipboard.");
 
@@ -75,6 +77,7 @@ const TopNav: React.FC = () => {
     : null;
 
   const handleDisconnect = () => {
+    trackUserAction("dashboard.topnav.disconnect.confirmed", { network });
     disconnect();
     setShowConfirm(false);
     toast.info("Wallet disconnected");
@@ -130,7 +133,12 @@ const TopNav: React.FC = () => {
             <ThemeToggle compact />
             <div className="hidden items-center gap-2 lg:flex">
               {actionButtons.map(({ Icon, label }) => (
-                <button key={label} aria-label={label} className={actionButtonClass}>
+                <button
+                  key={label}
+                  aria-label={label}
+                  className={actionButtonClass}
+                  onClick={() => trackUserAction("dashboard.topnav.action.click", { label })}
+                >
                   <Icon size={16} />
                 </button>
               ))}
@@ -166,6 +174,7 @@ const TopNav: React.FC = () => {
                     href={getExplorerLink(address, network)}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => trackUserAction("dashboard.topnav.explorer.click", { network })}
                     className="rounded-md p-1 text-[var(--color-text-muted)] hover:text-[var(--color-accent)]"
                     title="View on Stellar Expert"
                     aria-label="View on Stellar Expert"
@@ -179,7 +188,10 @@ const TopNav: React.FC = () => {
 
               <button
                 aria-label="Disconnect wallet"
-                onClick={() => setShowConfirm(true)}
+                onClick={() => {
+                  trackUserAction("dashboard.topnav.disconnect.open", { network });
+                  setShowConfirm(true);
+                }}
                 className={`${actionButtonClass} hover:text-[var(--color-danger)]`}
                 title="Disconnect wallet"
               >
@@ -224,7 +236,10 @@ const TopNav: React.FC = () => {
             <div className="flex gap-3">
               <button
                 ref={cancelButtonRef}
-                onClick={() => setShowConfirm(false)}
+                onClick={() => {
+                  trackUserAction("dashboard.topnav.disconnect.cancel", { network });
+                  setShowConfirm(false);
+                }}
                 className="flex-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] py-2.5 text-sm font-medium text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
               >
                 Cancel

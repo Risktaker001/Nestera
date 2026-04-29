@@ -16,6 +16,7 @@ export default function DashboardError({
       homeHref="/dashboard"
       title="Dashboard failed to render"
       description="One of the dashboard widgets crashed. You can retry the page or return to the dashboard home."
+      boundaryName="dashboard.error_boundary"
     />
   );
 }

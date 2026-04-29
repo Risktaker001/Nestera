@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Monitor, Moon, Settings, Sun } from "lucide-react";
 import { type Theme, useTheme } from "../../context/ThemeContext";
+import { trackApiError } from "../../lib/monitoring";
 
 type Prefs = {
   emailNotifications?: boolean;
@@ -46,6 +47,7 @@ export default function SettingsClient() {
 
   useEffect(() => {
     const load = async () => {
+      const startedAt = performance.now();
       try {
         const res = await fetch("/notifications/preferences", {
           credentials: "include",
@@ -53,8 +55,22 @@ export default function SettingsClient() {
         if (res.ok) {
           const data = await res.json();
           setPrefs(data);
+        } else {
+          trackApiError({
+            endpoint: "/notifications/preferences",
+            method: "GET",
+            status: res.status,
+            durationMs: Math.round(performance.now() - startedAt),
+          });
         }
-      } catch {}
+      } catch (error) {
+        trackApiError({
+          endpoint: "/notifications/preferences",
+          method: "GET",
+          error,
+          durationMs: Math.round(performance.now() - startedAt),
+        });
+      }
     };
 
     load();
@@ -67,14 +83,33 @@ export default function SettingsClient() {
   const save = async () => {
     if (!prefs) return;
     setSaving(true);
+    const startedAt = performance.now();
     try {
-      await fetch("/notifications/preferences", {
+      const res = await fetch("/notifications/preferences", {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(prefs),
       });
-    } catch {}
+
+      if (!res.ok) {
+        trackApiError({
+          endpoint: "/notifications/preferences",
+          method: "PATCH",
+          status: res.status,
+          durationMs: Math.round(performance.now() - startedAt),
+          data: { preferenceKeys: Object.keys(prefs) },
+        });
+      }
+    } catch (error) {
+      trackApiError({
+        endpoint: "/notifications/preferences",
+        method: "PATCH",
+        error,
+        durationMs: Math.round(performance.now() - startedAt),
+        data: { preferenceKeys: Object.keys(prefs) },
+      });
+    }
     setSaving(false);
   };
 

@@ -16,6 +16,7 @@ export default function RootError({
       homeHref="/"
       title="The app hit a render error"
       description="A component failed to render. Refreshing this part of the app usually restores the interface."
+      boundaryName="root.error_boundary"
     />
   );
 }
