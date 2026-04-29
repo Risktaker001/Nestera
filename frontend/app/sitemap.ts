@@ -1,6 +1,8 @@
 import { MetadataRoute } from "next";
 
-const BASE_URL = "https://nestera.app";
+import { env } from "./config/env";
+
+const BASE_URL = env.baseUrl;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [

@@ -18,7 +18,9 @@ const LEADERBOARD = [
   { rank: 5, name: "0x12...9c", referrals: 3, earned: "$24" },
 ];
 
-const REFERRAL_LINK = "https://nestera.app/ref/0x4a8f";
+import { env } from "../../config/env";
+
+const REFERRAL_LINK = `${env.baseUrl}/ref/0x4a8f`;
 
 export default function ReferralsPage() {
   const [copied, setCopied] = useState(false);

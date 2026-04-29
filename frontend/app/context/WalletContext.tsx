@@ -16,6 +16,7 @@ import {
   WatchWalletChanges,
 } from "@stellar/freighter-api";
 import { Horizon } from "@stellar/stellar-sdk";
+import { env } from "../config/env";
 
 /** Matches the CallbackParams shape from @stellar/freighter-api's WatchWalletChanges. */
 interface WalletChangeEvent {
@@ -79,8 +80,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const getHorizonUrl = (network: string | null) => {
     return network?.toLowerCase() === "public"
-      ? "https://horizon.stellar.org"
-      : "https://horizon-testnet.stellar.org";
+      ? env.horizonPublicUrl
+      : env.horizonTestnetUrl;
   };
 
   const fetchBalances = useCallback(async () => {
@@ -96,7 +97,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       // Fetch prices
       const assetIds = Object.values(COINGECKO_IDS).join(",");
       const priceRes = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=${assetIds}&vs_currencies=usd`
+        `${env.coinGeckoApiUrl}/simple/price?ids=${assetIds}&vs_currencies=usd`
       );
       const prices = await priceRes.json();
 

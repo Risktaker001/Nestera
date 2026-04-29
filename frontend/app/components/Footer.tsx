@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import { env } from "../config/env";
 
 const productLinks = [
   { label: "Flexible Savings", href: "#" },
@@ -17,10 +17,10 @@ const companyLinks = [
 ];
 
 const communityLinks = [
-  { label: "Discord", href: "https://discord.gg/nestera" },
-  { label: "Telegram", href: "https://t.me/nestera" },
+  { label: "Discord", href: env.discordUrl },
+  { label: "Telegram", href: env.telegramUrl },
   { label: "Twitter", href: "#" },
-  { label: "GitHub", href: "https://github.com/nestera" },
+  { label: "GitHub", href: env.githubUrl },
 ];
 
 const Footer: React.FC = () => {

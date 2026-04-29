@@ -3,6 +3,7 @@
 import React from 'react';
 import { DocSection } from './DocsSidebar';
 import { Copy, ExternalLink, Terminal, ShieldCheck, Target, HelpCircle } from 'lucide-react';
+import { env } from '../config/env';
 
 interface SectionProps {
   section: DocSection;
@@ -146,7 +147,7 @@ const DocsSections: React.FC<SectionProps> = ({ section }) => {
           <CodeBlock 
             language="javascript"
             code={`// Fetch pool details
-const response = await fetch('https://api.nestera.io/v1/pools/usdc-main');
+const response = await fetch('https://api.yourdomain.com/v1/pools/usdc-main');
 const data = await response.json();
 
 console.log(\`Current APY: \${data.apy}%\`);`}
@@ -156,7 +157,7 @@ console.log(\`Current APY: \${data.apy}%\`);`}
           <p className="text-[rgba(180,210,210,0.7)] mb-4">Retrieve a user&apos;s total savings across all goals.</p>
           <CodeBlock 
             language="bash"
-            code={`curl -X GET "https://api.nestera.io/v1/user/GABC...1234/balance" \\
+            code={`curl -X GET "https://api.yourdomain.com/v1/user/GABC...1234/balance" \\
      -H "Authorization: Bearer YOUR_API_KEY"`}
           />
         </div>

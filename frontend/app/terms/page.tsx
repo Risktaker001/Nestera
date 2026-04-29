@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { env } from "../config/env";
 
 export const metadata: Metadata = {
   title: "Terms of Service — Nestera",
@@ -170,7 +171,7 @@ export default function TermsPage() {
             </h2>
             <p className="text-gray-300 mb-4">
               If you have any questions about these Terms of Service, please
-              contact us at legal@nestera.com.
+              contact us at {env.legalEmail}.
             </p>
           </section>
         </div>
