@@ -203,6 +203,64 @@ export class StellarService implements OnModuleInit {
     }
   }
 
+  /**
+   * Estimate fees for a Soroban contract call using simulation
+   */
+  async estimateSorobanFees(
+    contractId: string,
+    functionName: string,
+    args: any[] = [],
+  ): Promise<{ resourceFee: string; baseFee: string; totalFee: string }> {
+    try {
+      return await this.rpcClient.executeWithRetry(async (client) => {
+        const rpcServer = client as rpc.Server;
+        const sourceAccount = new Account(Keypair.random().publicKey(), '0');
+        const contract = new Contract(contractId);
+
+        const transaction = new TransactionBuilder(sourceAccount, {
+          fee: BASE_FEE,
+          networkPassphrase: this.getNetworkPassphrase(),
+        })
+          .addOperation(
+            contract.call(
+              functionName,
+              ...args.map((arg) => nativeToScVal(arg as never)),
+            ),
+          )
+          .setTimeout(30)
+          .build();
+
+        const simulation = await rpcServer.simulateTransaction(transaction);
+        if (rpc.Api.isSimulationError(simulation)) {
+          throw new Error(`Soroban simulation failed: ${simulation.error}`);
+        }
+
+        return this.calculateFees(transaction, simulation);
+      }, 'rpc');
+    } catch (error) {
+      this.logger.error(
+        `Failed to estimate fees for ${contractId}.${functionName}: ${(error as Error).message}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  private calculateFees(
+    transaction: any,
+    simulation: any,
+  ): { resourceFee: string; baseFee: string; totalFee: string } {
+    const resourceFee = BigInt(simulation.minResourceFee ?? 0);
+    const baseFee = BigInt(transaction.operations.length) * BigInt(BASE_FEE);
+    const totalFee = baseFee + resourceFee;
+
+    return {
+      resourceFee: resourceFee.toString(),
+      baseFee: baseFee.toString(),
+      totalFee: totalFee.toString(),
+    };
+  }
+
   async invokeContractWrite(
     contractId: string,
     functionName: string,
@@ -236,6 +294,9 @@ export class StellarService implements OnModuleInit {
           throw new Error(`Soroban simulation failed: ${simulation.error}`);
         }
 
+        const fees = this.calculateFees(transaction, simulation);
+        transaction.fee = fees.totalFee;
+
         transaction = rpc.assembleTransaction(transaction, simulation).build();
         transaction.sign(sourceKeypair);
 
@@ -246,7 +307,7 @@ export class StellarService implements OnModuleInit {
           sendResponse.errorResult !== null
         ) {
           throw new Error(
-            `Soroban submission failed: ${sendResponse.errorResult ?? sendResponse.status}`,
+            `Soroban submission failed: ${String(sendResponse.errorResult ?? sendResponse.status)}`,
           );
         }
 
