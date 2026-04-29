@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "./context/ThemeContext";
 import { WalletProvider } from "./context/WalletContext";
 import { ToastProvider } from "./context/ToastContext";
+import MonitoringProvider from "./components/MonitoringProvider";
 
 const BASE_URL = "https://nestera.app";
 
@@ -41,6 +42,7 @@ export default function RootLayout({
         <ThemeProvider>
           <WalletProvider>
             <ToastProvider>
+              <MonitoringProvider />
               <main id="main-content">{children}</main>
             </ToastProvider>
           </WalletProvider>

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useToast } from "../context/ToastContext";
+import { trackApiError } from "../lib/monitoring";
 
 const Newsletter: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -18,6 +19,7 @@ const Newsletter: React.FC = () => {
     }
 
     setIsSubmitting(true);
+    const startedAt = performance.now();
 
     try {
       const response = await fetch("/api/newsletter/subscribe", {
@@ -31,6 +33,14 @@ const Newsletter: React.FC = () => {
       const payload = await response.json().catch(() => ({}));
 
       if (!response.ok) {
+        trackApiError({
+          endpoint: "/api/newsletter/subscribe",
+          method: "POST",
+          status: response.status,
+          durationMs: Math.round(performance.now() - startedAt),
+          data: { route: "newsletter.subscribe" },
+        });
+
         if (response.status === 409) {
           toast.info(
             "Already subscribed",
@@ -48,7 +58,14 @@ const Newsletter: React.FC = () => {
 
       toast.success("Subscribed", "You have been added to the newsletter list.");
       setEmail("");
-    } catch {
+    } catch (error) {
+      trackApiError({
+        endpoint: "/api/newsletter/subscribe",
+        method: "POST",
+        error,
+        durationMs: Math.round(performance.now() - startedAt),
+        data: { route: "newsletter.subscribe" },
+      });
       toast.error(
         "Network error",
         "Could not reach the newsletter service. Please try again.",

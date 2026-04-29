@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Bell,
+  Bug,
   Briefcase,
   Copy,
   History,
@@ -21,6 +22,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import { trackUserAction } from "../../lib/monitoring";
 
 const navLinks = [
   { label: "Dashboard", href: "/dashboard", icon: Home },
@@ -32,6 +34,7 @@ const navLinks = [
   { label: "Transactions", href: "/dashboard/transactions", icon: History },
   { label: "Referrals", href: "/dashboard/referrals", icon: Users },
   { label: "Notifications", href: "/dashboard/notifications", icon: Bell },
+  { label: "Error Monitoring", href: "/dashboard/error-monitoring", icon: Bug },
   { label: "Profile", href: "/dashboard/profile", icon: UserCircle },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
   { label: "Support", href: "/support", icon: LifeBuoy },
@@ -93,7 +96,10 @@ const Sidebar: React.FC = () => {
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                  trackUserAction("dashboard.nav.click", { label: link.label, href: link.href });
+                  setOpen(false);
+                }}
                 style={{ padding: "11px 12px", fontSize: 14 }}
                 className={[
                   "relative flex items-center rounded-xl font-medium no-underline",
@@ -144,6 +150,7 @@ const Sidebar: React.FC = () => {
             <button
               className="ml-auto shrink-0 cursor-pointer rounded p-1 text-[var(--color-text-soft)] hover:text-[var(--color-accent)]"
               aria-label="Copy address"
+              onClick={() => trackUserAction("dashboard.sidebar.copy_address")}
             >
               <Copy size={12} />
             </button>

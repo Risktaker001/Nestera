@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import { captureMessage, addBreadcrumb } from "../lib/monitoring";
 
 type ToastType = "success" | "error" | "warning" | "info";
 
@@ -56,6 +57,20 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
       const toast: Toast = { id, title, message, type, duration };
       setToasts((current) => [...current, toast]);
+
+      if (type === "error") {
+        captureMessage("Toast error shown", {
+          level: "warning",
+          data: { title, message, type },
+        });
+      } else if (type === "warning") {
+        addBreadcrumb({
+          category: "toast",
+          message: "Toast warning shown",
+          level: "warning",
+          data: { title, message, type },
+        });
+      }
 
       window.setTimeout(() => {
         removeToast(id);
@@ -125,4 +140,3 @@ export function useToast() {
   }
   return context;
 }
-

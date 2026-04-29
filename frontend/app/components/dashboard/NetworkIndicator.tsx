@@ -4,6 +4,7 @@ import React, { useState, useCallback } from "react";
 import NetworkBadge from "./NetworkBadge";
 import NetworkSwitchModal from "./NetworkSwitchModal";
 import { type StellarNetwork } from "../../constants/networks";
+import { captureException } from "../../lib/monitoring";
 
 /**
  * NetworkIndicator Component
@@ -47,6 +48,10 @@ class NetworkIndicatorErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('NetworkIndicator error:', error, errorInfo);
+    captureException(error, {
+      boundaryName: "dashboard.network_indicator",
+      data: { componentStack: errorInfo.componentStack },
+    });
   }
 
   render() {

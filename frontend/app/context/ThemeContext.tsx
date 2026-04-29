@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { trackUserAction } from "../lib/monitoring";
 
 export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
@@ -111,13 +112,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   const setTheme = useCallback((nextTheme: Theme) => {
+    trackUserAction("theme.changed", { theme: nextTheme });
     setThemeState(nextTheme);
   }, []);
 
   const toggleTheme = useCallback(() => {
     setThemeState((currentTheme) => {
       const activeTheme = currentTheme === "system" ? getSystemTheme() : currentTheme;
-      return activeTheme === "dark" ? "light" : "dark";
+      const nextTheme = activeTheme === "dark" ? "light" : "dark";
+      trackUserAction("theme.toggled", { theme: nextTheme });
+      return nextTheme;
     });
   }, []);
 

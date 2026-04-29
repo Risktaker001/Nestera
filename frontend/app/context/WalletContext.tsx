@@ -16,6 +16,13 @@ import {
   WatchWalletChanges,
 } from "@stellar/freighter-api";
 import { Horizon } from "@stellar/stellar-sdk";
+import {
+  addBreadcrumb,
+  clearMonitoringUser,
+  maskWalletAddress,
+  setMonitoringUserFromWallet,
+  trackWalletError,
+} from "../lib/monitoring";
 
 /** Matches the CallbackParams shape from @stellar/freighter-api's WatchWalletChanges. */
 interface WalletChangeEvent {
@@ -86,6 +93,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const fetchBalances = useCallback(async () => {
     if (!state.address) return;
 
+    addBreadcrumb({
+      category: "wallet",
+      message: "wallet.balance.refresh.started",
+      level: "info",
+      data: { network: state.network, walletAddressMasked: maskWalletAddress(state.address) },
+    });
     setState((s) => ({ ...s, isBalancesLoading: true, balanceError: null }));
 
     try {
@@ -125,8 +138,30 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         balanceError: null,
         lastBalanceSync: Date.now(),
       }));
+      addBreadcrumb({
+        category: "wallet",
+        message: "wallet.balance.refresh.succeeded",
+        level: "info",
+        data: {
+          network: state.network,
+          walletAddressMasked: maskWalletAddress(state.address),
+          assetCount: balances.length,
+        },
+      });
     } catch (err) {
       console.error("Failed to fetch balances:", err);
+      trackWalletError({
+        action: "wallet.balance.fetch_failed",
+        error: err,
+        network: state.network,
+        address: state.address,
+      });
+      addBreadcrumb({
+        category: "wallet",
+        message: "wallet.balance.refresh.failed",
+        level: "error",
+        data: { network: state.network, walletAddressMasked: maskWalletAddress(state.address) },
+      });
       setState((s) => ({
         ...s,
         isBalancesLoading: false,
@@ -147,6 +182,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             getNetwork(),
           ]);
           if (addrResult?.address) {
+            setMonitoringUserFromWallet(addrResult.address, netResult?.network ?? null);
+            addBreadcrumb({
+              category: "wallet",
+              message: "wallet.session.restored",
+              level: "info",
+              data: {
+                network: netResult?.network ?? null,
+                walletAddressMasked: maskWalletAddress(addrResult.address),
+              },
+            });
             setState((s) => ({
               ...s,
               address: addrResult.address,
@@ -157,8 +202,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             }));
           }
         }
-      } catch {
-        // Freighter not installed or not connected — silent fail
+      } catch (error) {
+        trackWalletError({
+          action: "wallet.session.restore_failed",
+          error,
+        });
       }
     })();
   }, []);
@@ -200,6 +248,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           networkWatcher.current.stop();
         } catch (error) {
           console.error("Error stopping network watcher:", error);
+          trackWalletError({
+            action: "wallet.network_watcher.stop_failed",
+            error,
+            network: state.network,
+            address: state.address,
+          });
         }
         networkWatcher.current = null;
       }
@@ -211,7 +265,23 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       networkWatcher.current = new WatchWalletChanges(3000);
 
       networkWatcher.current.watch((changes: WalletChangeEvent) => {
+        if (changes.error) {
+          trackWalletError({
+            action: "wallet.change.error",
+            error: changes.error,
+            network: changes.network || state.network,
+            address: changes.address || state.address,
+          });
+        }
+
         if (changes.network && changes.network !== state.network) {
+          addBreadcrumb({
+            category: "wallet",
+            message: "wallet.network.changed",
+            level: "info",
+            data: { from: state.network, to: changes.network },
+          });
+          setMonitoringUserFromWallet(state.address, changes.network);
           setState((prevState) => ({
             ...prevState,
             network: changes.network,
@@ -220,6 +290,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error) {
       console.error("Failed to initialize network watcher:", error);
+      trackWalletError({
+        action: "wallet.network_watcher.start_failed",
+        error,
+        network: state.network,
+        address: state.address,
+      });
     }
 
     // Cleanup function
@@ -229,17 +305,28 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           networkWatcher.current.stop();
         } catch (error) {
           console.error("Error stopping network watcher:", error);
+          trackWalletError({
+            action: "wallet.network_watcher.stop_failed",
+            error,
+            network: state.network,
+            address: state.address,
+          });
         }
         networkWatcher.current = null;
       }
     };
-  }, [state.isConnected, state.network]);
+  }, [state.address, state.isConnected, state.network]);
 
   const connect = useCallback(async () => {
+    addBreadcrumb({ category: "wallet", message: "wallet.connect.started", level: "info" });
     setState((s) => ({ ...s, isLoading: true, error: null }));
     try {
       const accessResult = await requestAccess();
       if (accessResult?.error) {
+        trackWalletError({
+          action: "wallet.connect.rejected",
+          error: new Error(accessResult.error),
+        });
         setState((s) => ({
           ...s,
           isLoading: false,
@@ -251,6 +338,18 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         getAddress(),
         getNetwork(),
       ]);
+      if (addrResult?.address) {
+        setMonitoringUserFromWallet(addrResult.address, netResult?.network ?? null);
+        addBreadcrumb({
+          category: "wallet",
+          message: "wallet.connect.succeeded",
+          level: "info",
+          data: {
+            network: netResult?.network ?? null,
+            walletAddressMasked: maskWalletAddress(addrResult.address),
+          },
+        });
+      }
       setState((s) => ({
         ...s,
         address: addrResult?.address ?? null,
@@ -261,6 +360,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         balanceError: null,
       }));
     } catch (err) {
+      trackWalletError({
+        action: "wallet.connect.failed",
+        error: err,
+      });
       setState((s) => ({
         ...s,
         isLoading: false,
@@ -270,6 +373,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const disconnect = useCallback(() => {
+    addBreadcrumb({
+      category: "wallet",
+      message: "wallet.disconnect",
+      level: "info",
+      data: { network: state.network, walletAddressMasked: maskWalletAddress(state.address) },
+    });
+    clearMonitoringUser();
     setState((s) => ({
       ...s,
       address: null,
@@ -283,7 +393,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       isBalancesLoading: false,
       lastBalanceSync: null,
     }));
-  }, []);
+  }, [state.address, state.network]);
 
   return (
     <WalletContext.Provider value={{ ...state, connect, disconnect, fetchBalances }}>
