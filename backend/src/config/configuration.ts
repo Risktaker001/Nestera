@@ -38,6 +38,7 @@ export default () => ({
     rpcMaxRetries: parseInt(process.env.RPC_MAX_RETRIES || '3', 10),
     rpcRetryDelay: parseInt(process.env.RPC_RETRY_DELAY || '1000', 10),
     rpcTimeout: parseInt(process.env.RPC_TIMEOUT || '10000', 10),
+    batchMaxSize: parseInt(process.env.TRANSACTION_BATCH_MAX_SIZE || '25', 10),
   },
   redis: {
     url: process.env.REDIS_URL,

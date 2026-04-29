@@ -23,6 +23,9 @@ import { YieldHandler } from './event-handlers/yield.handler';
 import { IndexerService } from './indexer.service';
 import { BalanceSyncService } from './balance-sync.service';
 import { ProtocolMetrics } from '../admin-analytics/entities/protocol-metrics.entity';
+import { TransactionBatchingService } from './transaction-batching.service';
+import { TransactionBatch } from './entities/transaction-batch.entity';
+import { TransactionBatchOperation } from './entities/transaction-batch-operation.entity';
 
 @Global()
 @Module({
@@ -43,6 +46,8 @@ import { ProtocolMetrics } from '../admin-analytics/entities/protocol-metrics.en
       UserSubscription,
       SavingsProduct,
       ProtocolMetrics,
+      TransactionBatch,
+      TransactionBatchOperation,
     ]),
   ],
   controllers: [BlockchainController, StellarEventListenerController],
@@ -56,6 +61,7 @@ import { ProtocolMetrics } from '../admin-analytics/entities/protocol-metrics.en
     WithdrawHandler,
     YieldHandler,
     BalanceSyncService,
+    TransactionBatchingService,
   ],
   exports: [
     StellarService,
@@ -67,6 +73,7 @@ import { ProtocolMetrics } from '../admin-analytics/entities/protocol-metrics.en
     WithdrawHandler,
     YieldHandler,
     BalanceSyncService,
+    TransactionBatchingService,
   ],
 })
 export class BlockchainModule {}

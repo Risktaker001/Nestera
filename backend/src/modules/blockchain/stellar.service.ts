@@ -18,6 +18,20 @@ import {
 import { TransactionDto } from './dto/transaction.dto';
 import { RpcClientWrapper, RpcEndpoint } from './rpc-client.wrapper';
 
+export interface ContractBatchOperation {
+  contractId: string;
+  functionName: string;
+  args?: unknown[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface ContractBatchExecutionResult {
+  hash: string;
+  status: string;
+  operationCount: number;
+  fees: { resourceFee: string; baseFee: string; totalFee: string };
+}
+
 const DELEGATION_STORAGE_KEYS = [
   'delegate',
   'delegation',
@@ -261,6 +275,91 @@ export class StellarService implements OnModuleInit {
     };
   }
 
+  async invokeContractBatchWrite(
+    operations: ContractBatchOperation[],
+    secretKey: string,
+  ): Promise<ContractBatchExecutionResult> {
+    if (!operations.length) {
+      throw new Error('At least one contract operation is required');
+    }
+
+    if (operations.length > 100) {
+      throw new Error(
+        'A Stellar transaction cannot contain more than 100 operations',
+      );
+    }
+
+    try {
+      return await this.rpcClient.executeWithRetry(async (client) => {
+        const rpcServer = client as rpc.Server;
+        const sourceKeypair = Keypair.fromSecret(secretKey);
+        const sourceAccount = await rpcServer.getAccount(
+          sourceKeypair.publicKey(),
+        );
+
+        const builder = new TransactionBuilder(sourceAccount, {
+          fee: BASE_FEE,
+          networkPassphrase: this.getNetworkPassphrase(),
+        });
+
+        for (const operation of operations) {
+          const contract = new Contract(operation.contractId);
+          builder.addOperation(
+            contract.call(
+              operation.functionName,
+              ...(operation.args ?? []).map((arg) =>
+                nativeToScVal(arg as never),
+              ),
+            ),
+          );
+        }
+
+        let transaction = builder.setTimeout(30).build();
+
+        const simulation = await rpcServer.simulateTransaction(transaction);
+        if (rpc.Api.isSimulationError(simulation)) {
+          throw new Error(`Soroban simulation failed: ${simulation.error}`);
+        }
+
+        const fees = this.calculateFees(transaction, simulation);
+        transaction = this.cloneTransactionWithFee(transaction, fees.totalFee);
+
+        transaction = this.assembleSorobanTransaction(transaction, simulation);
+        transaction.sign(sourceKeypair);
+
+        const sendResponse = await rpcServer.sendTransaction(transaction);
+        if (
+          'errorResult' in sendResponse &&
+          sendResponse.errorResult !== undefined &&
+          sendResponse.errorResult !== null
+        ) {
+          throw new Error(
+            `Soroban submission failed: ${String(sendResponse.errorResult ?? sendResponse.status)}`,
+          );
+        }
+
+        const hash = sendResponse.hash;
+        const finalizedStatus = await this.waitForTransactionResult(
+          rpcServer,
+          hash,
+        );
+
+        return {
+          hash,
+          status: finalizedStatus,
+          operationCount: operations.length,
+          fees,
+        };
+      }, 'rpc');
+    } catch (error) {
+      this.logger.error(
+        `Failed to invoke contract batch write with ${operations.length} operation(s): ${(error as Error).message}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   async invokeContractWrite(
     contractId: string,
     functionName: string,
@@ -295,9 +394,9 @@ export class StellarService implements OnModuleInit {
         }
 
         const fees = this.calculateFees(transaction, simulation);
-        transaction.fee = fees.totalFee;
+        transaction = this.cloneTransactionWithFee(transaction, fees.totalFee);
 
-        transaction = rpc.assembleTransaction(transaction, simulation).build();
+        transaction = this.assembleSorobanTransaction(transaction, simulation);
         transaction.sign(sourceKeypair);
 
         const sendResponse = await rpcServer.sendTransaction(transaction);
@@ -387,6 +486,23 @@ export class StellarService implements OnModuleInit {
       publicKey: keypair.publicKey(),
       secretKey: keypair.secret(),
     };
+  }
+
+  private assembleSorobanTransaction(transaction: any, simulation: any): any {
+    return rpc.assembleTransaction(transaction, simulation).build();
+  }
+
+  private cloneTransactionWithFee(transaction: any, totalFee: string): any {
+    const operationCount = Math.max(transaction.operations.length, 1);
+    const feePerOperation = (
+      (BigInt(totalFee) + BigInt(operationCount) - 1n) /
+      BigInt(operationCount)
+    ).toString();
+
+    return TransactionBuilder.cloneFrom(transaction, {
+      fee: feePerOperation,
+      networkPassphrase: transaction.networkPassphrase,
+    }).build();
   }
 
   /**

@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Keypair, nativeToScVal, rpc } from '@stellar/stellar-sdk';
+import { Account, Keypair, nativeToScVal, rpc } from '@stellar/stellar-sdk';
 import { StellarService } from './stellar.service';
 import { TransactionDto } from './dto/transaction.dto';
 import { RpcClientWrapper } from './rpc-client.wrapper';
@@ -225,6 +225,103 @@ describe('StellarService', () => {
     );
 
     expect(result).toBe(mockRetVal);
+    isSimulationErrorSpy.mockRestore();
+  });
+
+  it('should submit one transaction for a successful multi-operation batch write', async () => {
+    const sourceKeypair = Keypair.random();
+    const simulateTransaction = jest
+      .fn()
+      .mockResolvedValue({ minResourceFee: '25' });
+    const sendTransaction = jest.fn().mockResolvedValue({ hash: 'batch-hash' });
+    const getAccount = jest
+      .fn()
+      .mockResolvedValue(new Account(sourceKeypair.publicKey(), '0'));
+
+    jest
+      .spyOn(mockRpcClient, 'executeWithRetry')
+      .mockImplementation(async (operation) => {
+        return operation({
+          simulateTransaction,
+          sendTransaction,
+          getAccount,
+        } as any);
+      });
+    const isSimulationErrorSpy = jest
+      .spyOn(rpc.Api, 'isSimulationError')
+      .mockReturnValue(false);
+    const assembleTransactionSpy = jest
+      .spyOn(
+        service as unknown as { assembleSorobanTransaction: jest.Mock },
+        'assembleSorobanTransaction',
+      )
+      .mockImplementation((transaction) => transaction);
+    const waitSpy = jest
+      .spyOn(service, 'waitForTransactionResult')
+      .mockResolvedValue('SUCCESS');
+
+    const result = await service.invokeContractBatchWrite(
+      [
+        {
+          contractId:
+            'CCJZ5DGASBWQXR5MPFCJXMBI333XE5U3FSJTNQU7RIKE3P5GN2K2WYD5',
+          functionName: 'deposit',
+          args: ['a'],
+        },
+        {
+          contractId:
+            'CCJZ5DGASBWQXR5MPFCJXMBI333XE5U3FSJTNQU7RIKE3P5GN2K2WYD5',
+          functionName: 'withdraw',
+          args: ['b'],
+        },
+      ],
+      sourceKeypair.secret(),
+    );
+
+    expect(simulateTransaction).toHaveBeenCalledTimes(1);
+    expect(sendTransaction).toHaveBeenCalledTimes(1);
+    expect(simulateTransaction.mock.calls[0][0].operations).toHaveLength(2);
+    expect(result).toMatchObject({
+      hash: 'batch-hash',
+      status: 'SUCCESS',
+      operationCount: 2,
+      fees: { resourceFee: '25', baseFee: '200', totalFee: '225' },
+    });
+
+    isSimulationErrorSpy.mockRestore();
+    assembleTransactionSpy.mockRestore();
+    waitSpy.mockRestore();
+  });
+
+  it('should throw when batch write simulation fails', async () => {
+    const sourceKeypair = Keypair.random();
+    jest
+      .spyOn(mockRpcClient, 'executeWithRetry')
+      .mockImplementation(async (operation) => {
+        return operation({
+          getAccount: jest
+            .fn()
+            .mockResolvedValue(new Account(sourceKeypair.publicKey(), '0')),
+          simulateTransaction: jest.fn().mockResolvedValue({ error: 'bad op' }),
+        } as any);
+      });
+    const isSimulationErrorSpy = jest
+      .spyOn(rpc.Api, 'isSimulationError')
+      .mockReturnValue(true);
+
+    await expect(
+      service.invokeContractBatchWrite(
+        [
+          {
+            contractId:
+              'CCJZ5DGASBWQXR5MPFCJXMBI333XE5U3FSJTNQU7RIKE3P5GN2K2WYD5',
+            functionName: 'deposit',
+          },
+        ],
+        sourceKeypair.secret(),
+      ),
+    ).rejects.toThrow('Soroban simulation failed: bad op');
+
     isSimulationErrorSpy.mockRestore();
   });
 });

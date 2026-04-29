@@ -78,6 +78,11 @@ const envValidationSchema = Joi.object({
   RPC_MAX_RETRIES: Joi.number().integer().min(0).default(3),
   RPC_RETRY_DELAY: Joi.number().integer().min(0).default(1000),
   RPC_TIMEOUT: Joi.number().integer().min(0).default(10000),
+  TRANSACTION_BATCH_MAX_SIZE: Joi.number()
+    .integer()
+    .min(1)
+    .max(100)
+    .default(25),
 
   REDIS_URL: Joi.string().uri().optional(),
   MAIL_HOST: Joi.string().optional(),
