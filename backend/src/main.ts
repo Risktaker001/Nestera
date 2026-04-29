@@ -104,10 +104,22 @@ async function bootstrap() {
   signals.forEach((signal) => {
     process.on(signal, async () => {
       logger.log(`Received ${signal}, starting graceful shutdown...`);
-      server.close(async () => {
-        await app.close();
-        process.exit(0);
-      });
+
+      // 1. Mark as shutting down to stop accepting new work
+      gracefulShutdown.initiateShutdown();
+
+      // 2. Stop accepting new HTTP connections
+      if (server) {
+        logger.log('Stopping HTTP server listener...');
+        server.close();
+      }
+
+      // 3. Wait for in-flight requests and background tasks (Indexer, Batches) to drain
+      // NestJS will also call onApplicationShutdown on all services
+      await app.close();
+
+      logger.log('Process exited cleanly.');
+      process.exit(0);
     });
   });
 
