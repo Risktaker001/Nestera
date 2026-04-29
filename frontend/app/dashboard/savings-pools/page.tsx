@@ -221,7 +221,7 @@ export default function GoalBasedSavingsPage() {
             No pools found
           </h3>
           <p className="text-[#5e8c96] max-w-md">
-            Try adjusting your search terms or filters to find what you're
+            Try adjusting your search terms or filters to find what you&apos;re
             looking for.
           </p>
           <button

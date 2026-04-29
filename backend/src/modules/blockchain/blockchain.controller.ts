@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import {
   ApiOperation,
   ApiParam,
@@ -9,6 +9,9 @@ import {
 import { StellarService } from './stellar.service';
 import { BalanceSyncService } from './balance-sync.service';
 import { TransactionDto } from './dto/transaction.dto';
+import { TransactionBatchingService } from './transaction-batching.service';
+import { CreateTransactionBatchDto } from './dto/create-transaction-batch.dto';
+import { TransactionBatchResponseDto } from './dto/transaction-batch-response.dto';
 
 @ApiTags('Blockchain')
 @Controller('blockchain')
@@ -16,6 +19,7 @@ export class BlockchainController {
   constructor(
     private readonly stellarService: StellarService,
     private readonly balanceSyncService: BalanceSyncService,
+    private readonly transactionBatchingService: TransactionBatchingService,
   ) {}
 
   @Post('wallets/generate')
@@ -97,6 +101,46 @@ export class BlockchainController {
   })
   getRpcStatus() {
     return this.stellarService.getEndpointsStatus();
+  }
+
+  @Post('batches')
+  @ApiOperation({
+    summary: 'Create and process a Soroban transaction batch',
+    description:
+      'Executes compatible contract operations using one source signer, tracks partial failures, and returns fee savings metrics. The sourceSecretKey is never persisted or returned.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Persisted batch status including per-operation results',
+    type: TransactionBatchResponseDto,
+  })
+  @ApiResponse({ status: 400, description: 'Invalid batch request' })
+  async createBatch(
+    @Body() dto: CreateTransactionBatchDto,
+  ): Promise<TransactionBatchResponseDto> {
+    return this.transactionBatchingService.createAndProcessBatch(
+      dto.sourceSecretKey,
+      dto.operations,
+      { maxBatchSize: dto.maxBatchSize, metadata: dto.metadata },
+    );
+  }
+
+  @Get('batches/:id')
+  @ApiOperation({
+    summary:
+      'Get transaction batch status, operation results, and cost metrics',
+  })
+  @ApiParam({ name: 'id', description: 'Transaction batch UUID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Batch status including operations and cost-savings metrics',
+    type: TransactionBatchResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Transaction batch not found' })
+  async getBatch(
+    @Param('id') id: string,
+  ): Promise<TransactionBatchResponseDto> {
+    return this.transactionBatchingService.getBatchStatus(id);
   }
 
   @Get('balance-sync/metrics')

@@ -29,7 +29,7 @@ export default function PrivacyPage() {
               1. Introduction
             </h2>
             <p className="text-gray-300 mb-4">
-              Nestera ("we", "us", or "our") respects your privacy and is
+              Nestera (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) respects your privacy and is
               committed to protecting your personal data. This privacy policy
               explains how we collect, use, disclose, and safeguard your
               information when you use our decentralized savings platform.
@@ -205,7 +205,7 @@ export default function PrivacyPage() {
 
           <section className="mb-8">
             <h2 className="text-2xl font-semibold text-white mb-4">
-              9. Children's Privacy
+              9. Children&apos;s Privacy
             </h2>
             <p className="text-gray-300 mb-4">
               Our service is not intended for children under 18 years of age. We

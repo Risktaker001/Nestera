@@ -315,7 +315,7 @@ export default function GoalBasedSavingsPage() {
               </div>
               <div className="flex-1">
                 <p className="text-white text-sm font-medium">Emergency Fund Goal Behind Schedule</p>
-                <p className="text-[#6a8a93] text-xs mt-1">You're 15% behind your target. Consider increasing contributions.</p>
+                <p className="text-[#6a8a93] text-xs mt-1">You&apos;re 15% behind your target. Consider increasing contributions.</p>
                 <a href="#" className="text-cyan-400 text-xs hover:text-cyan-300 mt-2 inline-block">Contribute Now →</a>
               </div>
             </div>
@@ -325,7 +325,7 @@ export default function GoalBasedSavingsPage() {
               </div>
               <div className="flex-1">
                 <p className="text-white text-sm font-medium">Great Progress on Travel Fund</p>
-                <p className="text-[#6a8a93] text-xs mt-1">You've saved 70% of your goal. Keep it up!</p>
+                <p className="text-[#6a8a93] text-xs mt-1">You&apos;ve saved 70% of your goal. Keep it up!</p>
                 <a href="#" className="text-cyan-400 text-xs hover:text-cyan-300 mt-2 inline-block">View Progress →</a>
               </div>
             </div>

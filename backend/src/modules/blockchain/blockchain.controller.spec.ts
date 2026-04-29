@@ -3,6 +3,8 @@ import { BlockchainController } from './blockchain.controller';
 import { StellarService } from './stellar.service';
 import { BalanceSyncService } from './balance-sync.service';
 import { TransactionDto } from './dto/transaction.dto';
+import { TransactionBatchingService } from './transaction-batching.service';
+import { TransactionBatchStatus } from './entities/transaction-batch.entity';
 
 const MOCK_PUBLIC_KEY =
   'GAAZI4TCR3TY5OJHCTJC2A4QSY6CJWJH5IAJTGKIN2ER7LBNVKOCCWN';
@@ -25,6 +27,7 @@ const MOCK_TRANSACTIONS: TransactionDto[] = [
 describe('BlockchainController', () => {
   let controller: BlockchainController;
   let stellarService: jest.Mocked<StellarService>;
+  let transactionBatchingService: jest.Mocked<TransactionBatchingService>;
 
   beforeEach(async () => {
     const mockStellarService: Partial<jest.Mocked<StellarService>> = {
@@ -37,6 +40,26 @@ describe('BlockchainController', () => {
 
     const mockBalanceSyncService = {
       // Add any methods if needed, but since the controller doesn't use it in tests, empty is fine
+      getMetricsSummary: jest.fn().mockReturnValue({}),
+    };
+
+    const mockTransactionBatchingService = {
+      createAndProcessBatch: jest.fn().mockResolvedValue({
+        id: 'batch-1',
+        status: TransactionBatchStatus.COMPLETED,
+        requestedOperationCount: 1,
+        completedCount: 1,
+        failedCount: 0,
+        operations: [],
+      }),
+      getBatchStatus: jest.fn().mockResolvedValue({
+        id: 'batch-1',
+        status: TransactionBatchStatus.COMPLETED,
+        requestedOperationCount: 1,
+        completedCount: 1,
+        failedCount: 0,
+        operations: [],
+      }),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -44,11 +67,16 @@ describe('BlockchainController', () => {
       providers: [
         { provide: StellarService, useValue: mockStellarService },
         { provide: BalanceSyncService, useValue: mockBalanceSyncService },
+        {
+          provide: TransactionBatchingService,
+          useValue: mockTransactionBatchingService,
+        },
       ],
     }).compile();
 
     controller = module.get<BlockchainController>(BlockchainController);
     stellarService = module.get(StellarService);
+    transactionBatchingService = module.get(TransactionBatchingService);
   });
 
   describe('getWalletTransactions', () => {
@@ -96,6 +124,42 @@ describe('BlockchainController', () => {
         publicKey: expect.any(String),
         secretKey: expect.any(String),
       });
+    });
+  });
+
+  describe('transaction batches', () => {
+    it('should submit a batch without returning or persisting the source secret key in the controller', async () => {
+      const dto = {
+        sourceSecretKey: 'S_SECRET',
+        maxBatchSize: 10,
+        operations: [
+          {
+            contractId: 'C1',
+            functionName: 'deposit',
+            args: ['100'],
+            idempotencyKey: 'op-1',
+          },
+        ],
+      };
+
+      const result = await controller.createBatch(dto);
+
+      expect(
+        transactionBatchingService.createAndProcessBatch,
+      ).toHaveBeenCalledWith('S_SECRET', dto.operations, {
+        maxBatchSize: 10,
+        metadata: undefined,
+      });
+      expect(JSON.stringify(result)).not.toContain('S_SECRET');
+    });
+
+    it('should fetch batch status by id', async () => {
+      const result = await controller.getBatch('batch-1');
+
+      expect(transactionBatchingService.getBatchStatus).toHaveBeenCalledWith(
+        'batch-1',
+      );
+      expect(result).toMatchObject({ id: 'batch-1' });
     });
   });
 });

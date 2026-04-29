@@ -17,6 +17,14 @@ import {
 } from "@stellar/freighter-api";
 import { Horizon } from "@stellar/stellar-sdk";
 
+/** Matches the CallbackParams shape from @stellar/freighter-api's WatchWalletChanges. */
+interface WalletChangeEvent {
+  address: string;
+  network: string;
+  networkPassphrase: string;
+  error?: unknown;
+}
+
 interface Balance {
   asset_code: string;
   balance: string;
@@ -202,7 +210,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       // Initialize watcher to poll every 3 seconds
       networkWatcher.current = new WatchWalletChanges(3000);
 
-      networkWatcher.current.watch((changes) => {
+      networkWatcher.current.watch((changes: WalletChangeEvent) => {
         if (changes.network && changes.network !== state.network) {
           setState((prevState) => ({
             ...prevState,

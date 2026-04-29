@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "eslint app",
+    "test": "jest",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@stellar/freighter-api": "^3.1.0",
@@ -19,12 +22,26 @@
     "stellar-sdk": "^13.3.0"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@next/eslint-plugin-next": "^16.2.4",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@typescript-eslint/parser": "^8.59.1",
     "autoprefixer": "^10.4.27",
     "eslint": "^10.0.1",
+    "jest": "^30.3.0",
+    "jest-canvas-mock": "^2.5.2",
+    "jest-environment-jsdom": "^30.3.0",
+    "eslint-config-next": "^16.2.4",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "postcss": "^8.5.6",
     "prettier": "^3.8.1",
     "tailwindcss": "^4",

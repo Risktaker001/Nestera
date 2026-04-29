@@ -30,7 +30,7 @@ export default function TermsPage() {
               1. Acceptance of Terms
             </h2>
             <p className="text-gray-300 mb-4">
-              By accessing and using Nestera ("the Service"), you accept and
+              By accessing and using Nestera (&quot;the Service&quot;), you accept and
               agree to be bound by the terms and provision of this agreement. If
               you do not agree to abide by the above, please do not use this
               service.
@@ -79,7 +79,7 @@ export default function TermsPage() {
               4. Service Limitations
             </h2>
             <p className="text-gray-300 mb-4">
-              Nestera provides the service "as is" and "as available". We do not
+              Nestera provides the service &quot;as is&quot; and &quot;as available&quot;. We do not
               guarantee:
             </p>
             <ul className="list-disc list-inside text-gray-300 mb-4 space-y-2">
