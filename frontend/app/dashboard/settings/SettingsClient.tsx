@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Monitor, Moon, Settings, Sun } from "lucide-react";
 import { type Theme, useTheme } from "../../context/ThemeContext";
+import DataExportSection from "../../components/dashboard/DataExportSection";
 
 type Prefs = {
   emailNotifications?: boolean;
@@ -188,6 +189,8 @@ export default function SettingsClient() {
           </div>
         </section>
       </div>
+
+      <DataExportSection />
     </div>
   );
 }

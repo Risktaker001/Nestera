@@ -10,8 +10,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { MoreHorizontal, TrendingUp } from "lucide-react";
+import { MoreHorizontal, TrendingUp, Download } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
+import ExportModal from "../../components/dashboard/ExportModal";
 
 const chartData = [
   { date: "Aug 04", value: 105400 },
@@ -142,6 +143,7 @@ function ActiveDot({
 export default function PortfolioPerformanceChart() {
   const { resolvedTheme } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [selectedWindow, setSelectedWindow] = useState("30D");
   const menuRef = useRef<HTMLDivElement | null>(null);
   const chartTheme = useMemo(() => chartThemeByResolvedTheme[resolvedTheme], [resolvedTheme]);
@@ -176,8 +178,21 @@ export default function PortfolioPerformanceChart() {
     };
   }, [isMenuOpen]);
 
+  const exportRows = selectedChartData.map((d) => ({
+    date: d.date,
+    portfolio_value: d.value,
+  }));
+
   return (
     <div className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-linear-to-b from-[var(--color-card-start)] to-[var(--color-card-end)]">
+      <ExportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        dataType="analytics"
+        title="Portfolio Performance"
+        rows={exportRows}
+        dateKey="date"
+      />
       <div className="flex items-start justify-between px-6 pt-6 pb-2">
         <div>
           <p className="m-0 mb-1 text-[11px] uppercase tracking-[0.15em] text-[var(--color-text-muted)]">
@@ -194,17 +209,27 @@ export default function PortfolioPerformanceChart() {
           </div>
         </div>
 
-        <div ref={menuRef} className="relative">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => setIsMenuOpen((current) => !current)}
-            className="rounded-lg p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
-            aria-label="Portfolio performance options"
-            aria-expanded={isMenuOpen}
-            aria-haspopup="menu"
+            onClick={() => setExportOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-subtle)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] hover:bg-[var(--color-accent-soft)] hover:text-[var(--color-accent)] transition-colors"
           >
-            <MoreHorizontal size={18} />
+            <Download size={14} />
+            Export
           </button>
+
+          <div ref={menuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setIsMenuOpen((current) => !current)}
+              className="rounded-lg p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-surface-subtle)] hover:text-[var(--color-text)]"
+              aria-label="Portfolio performance options"
+              aria-expanded={isMenuOpen}
+              aria-haspopup="menu"
+            >
+              <MoreHorizontal size={18} />
+            </button>
 
           {isMenuOpen ? (
             <div
@@ -236,6 +261,7 @@ export default function PortfolioPerformanceChart() {
               })}
             </div>
           ) : null}
+          </div>
         </div>
       </div>
 

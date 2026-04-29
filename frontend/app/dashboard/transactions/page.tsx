@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Download, History, Loader2, Search, ChevronDown, Inbox } from "lucide-react";
 import TransactionRow, { TransactionType, TransactionStatus } from "./components/TransactionRow";
 import { useToast } from "../../context/ToastContext";
+import ExportModal from "../../components/dashboard/ExportModal";
 
 type TransactionRowData = {
   date: string;
@@ -17,44 +18,11 @@ type TransactionRowData = {
   hash: string;
 };
 
-function csvEscape(value: string) {
-  const needsQuotes = /[",\n]/.test(value);
-  const escaped = value.replaceAll('"', '""');
-  return needsQuotes ? `"${escaped}"` : escaped;
-}
-
-function toCsv(rows: TransactionRowData[]) {
-  const header = ["date", "time", "transactionId", "type", "assetDetails", "amountDisplay", "status", "hash"];
-  const lines = [
-    header.join(","),
-    ...rows.map((r) =>
-      [r.date, r.time, r.transactionId, r.type, r.assetDetails, r.amountDisplay, r.status, r.hash]
-        .map(csvEscape)
-        .join(","),
-    ),
-  ];
-  return `${lines.join("\n")}\n`;
-}
-
-function downloadTextFile(
-  filename: string,
-  text: string,
-  mime = "text/csv;charset=utf-8",
-) {
-  const blob = new Blob([text], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
 
 export default function TransactionHistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -109,14 +77,17 @@ export default function TransactionHistoryPage() {
     },
   ];
 
-  function onExportCsv() {
-    const csv = toCsv(transactions);
-    downloadTextFile(
-      `nestera-transactions-${new Date().toISOString().slice(0, 10)}.csv`,
-      csv,
-    );
-    toast.success("Transactions exported", "CSV file downloaded successfully.");
-  }
+  // exportRows: normalised objects for ExportService
+  const exportRows = transactions.map((t) => ({
+    date: t.date,
+    time: t.time,
+    transactionId: t.transactionId,
+    type: t.type,
+    assetDetails: t.assetDetails,
+    amount: t.amountDisplay,
+    status: t.status,
+    hash: t.hash,
+  }));
 
   const filteredTransactions = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -143,6 +114,15 @@ export default function TransactionHistoryPage() {
 
   return (
     <div className="w-full max-w-7xl mx-auto pb-20">
+      <ExportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        dataType="transactions"
+        title="Transaction History"
+        rows={exportRows}
+        dateKey="date"
+      />
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-linear-to-b from-[#063d3d] to-[#0a6f6f] flex items-center justify-center text-cyan-400 shadow-[0_8px_20px_rgba(6,61,61,0.3)]">
@@ -153,17 +133,17 @@ export default function TransactionHistoryPage() {
               Transaction History
             </h1>
             <p className="text-[#5e8c96] text-sm md:text-base m-0 mt-1">
-              Download your transactions as a CSV file for reporting.
+              Export your transactions as CSV, JSON, or PDF for reporting &amp; tax.
             </p>
           </div>
         </div>
 
         <button
-          onClick={onExportCsv}
+          onClick={() => setExportOpen(true)}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 font-bold text-[#061a1a] shadow-lg transition-all hover:bg-cyan-400 active:scale-95"
         >
           <Download size={18} />
-          Export CSV
+          Export Data
         </button>
       </div>
 
@@ -257,10 +237,10 @@ export default function TransactionHistoryPage() {
             ) : (
               <button
                 type="button"
-                onClick={onExportCsv}
+                onClick={() => setExportOpen(true)}
                 className="mt-6 rounded-xl border border-cyan-500/30 px-6 py-2.5 font-semibold text-cyan-300 hover:bg-cyan-500/10"
               >
-                Export sample CSV
+                Export Data
               </button>
             )}
           </div>
