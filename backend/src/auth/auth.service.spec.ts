@@ -223,7 +223,7 @@ describe('AuthService - Nonce Security', () => {
       mockCacheManager.get.mockResolvedValue(null);
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       await expect(
@@ -251,7 +251,7 @@ describe('AuthService - Nonce Security', () => {
       });
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       await expect(
@@ -275,7 +275,7 @@ describe('AuthService - Nonce Security', () => {
       });
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       await expect(
@@ -320,6 +320,26 @@ describe('AuthService - Nonce Security', () => {
       ).rejects.toThrow('Invalid signature');
     });
 
+    it('should reject if signature is for raw nonce without prefix', async () => {
+      mockCacheManager.get.mockResolvedValue({
+        nonce: mockNonce,
+        timestamp: mockTimestamp,
+      });
+
+      // Sign the raw nonce without prefix
+      const rawSignature = testKeypair
+        .sign(Buffer.from(mockNonce))
+        .toString('hex');
+
+      await expect(
+        service.verifySignature({
+          publicKey: testPublicKey,
+          signature: rawSignature,
+          nonce: mockNonce,
+        }),
+      ).rejects.toThrow('Invalid signature');
+    });
+
     it('should atomically consume nonce after successful verification', async () => {
       mockCacheManager.get.mockResolvedValue({
         nonce: mockNonce,
@@ -327,7 +347,7 @@ describe('AuthService - Nonce Security', () => {
       });
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       await service.verifySignature({
@@ -353,7 +373,7 @@ describe('AuthService - Nonce Security', () => {
       mockCacheManager.get.mockResolvedValueOnce(nonceData);
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       // First verification should succeed
@@ -383,7 +403,7 @@ describe('AuthService - Nonce Security', () => {
       });
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       const result = await service.verifySignature({
@@ -413,7 +433,7 @@ describe('AuthService - Nonce Security', () => {
       });
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       await service.verifySignature({
@@ -446,7 +466,7 @@ describe('AuthService - Nonce Security', () => {
       mockCacheManager.get.mockResolvedValue(null);
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       await expect(
@@ -466,7 +486,7 @@ describe('AuthService - Nonce Security', () => {
       });
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       await expect(
@@ -489,7 +509,7 @@ describe('AuthService - Nonce Security', () => {
       });
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       await service.linkWallet(userId, {
@@ -510,7 +530,7 @@ describe('AuthService - Nonce Security', () => {
       });
 
       const signature = testKeypair
-        .sign(Buffer.from(mockNonce))
+        .sign(Buffer.from('[Nestera] Auth Login Nonce: ' + mockNonce))
         .toString('hex');
 
       const result = await service.linkWallet(userId, {

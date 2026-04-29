@@ -78,7 +78,10 @@ export class VerifySignatureDto {
   @IsStellarPublicKey()
   publicKey: string;
 
-  @ApiProperty({ description: 'Hex-encoded Ed25519 signature over the nonce' })
+  @ApiProperty({
+    description:
+      'Hex-encoded Ed25519 signature over the prefixed nonce message: "[Nestera] Auth Login Nonce: <nonce>"',
+  })
   @IsString()
   signature: string;
 
@@ -105,7 +108,7 @@ export class RefreshTokenDto {
  * Body accepted by POST /auth/link-wallet.
  * The caller must:
  *  1. Fetch a nonce via GET /auth/nonce?publicKey=<key>
- *  2. Sign the nonce bytes with the wallet's Ed25519 secret key
+ *  2. Sign the message "[Nestera] Auth Login Nonce: <nonce>" with the wallet\'s Ed25519 secret key
  *  3. Submit this DTO together with a valid JWT (Bearer token)
  */
 export class LinkWalletDto {
@@ -123,7 +126,8 @@ export class LinkWalletDto {
   nonce: string;
 
   @ApiProperty({
-    description: 'Hex-encoded Ed25519 signature of the nonce bytes',
+    description:
+      'Hex-encoded Ed25519 signature of the prefixed nonce message: "[Nestera] Auth Login Nonce: <nonce>"',
   })
   @IsString()
   signature: string;

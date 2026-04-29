@@ -4,7 +4,11 @@ import {
   ConflictException,
   BadRequestException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import { Cache } from 'cache-manager';
+import { createHash } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Not } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -14,13 +18,26 @@ import { LinkWalletDto } from './dto/link-wallet.dto';
 
 @Injectable()
 export class WalletService {
+  private readonly REPLAY_TTL_MS = 5 * 60 * 1000;
+
   constructor(
     @InjectRepository(UserWallet)
     private readonly walletRepository: Repository<UserWallet>,
     private readonly eventEmitter: EventEmitter2,
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
   ) {}
 
   async linkWallet(userId: string, dto: LinkWalletDto): Promise<UserWallet> {
+    const replayKey = this.buildReplayKey(
+      dto.address,
+      dto.message,
+      dto.signature,
+    );
+    const replayed = await this.cacheManager.get<boolean>(replayKey);
+    if (replayed) {
+      throw new ForbiddenException('Signature replay detected');
+    }
+
     // Verify ownership via signed message
     this.verifySignature(dto.address, dto.message, dto.signature);
 
@@ -44,6 +61,8 @@ export class WalletService {
       isPrimary,
     });
     const saved = await this.walletRepository.save(wallet);
+
+    await this.cacheManager.set(replayKey, true, this.REPLAY_TTL_MS);
 
     this.eventEmitter.emit('wallet.linked', { userId, address: dto.address });
     return saved;
@@ -117,5 +136,16 @@ export class WalletService {
       }
       throw new ForbiddenException('Signature verification failed');
     }
+  }
+
+  private buildReplayKey(
+    address: string,
+    message: string,
+    signature: string,
+  ): string {
+    const digest = createHash('sha256')
+      .update(`${message}:${signature}`)
+      .digest('hex');
+    return `wallet:signature:${address}:${digest}`;
   }
 }

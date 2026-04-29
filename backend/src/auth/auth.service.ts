@@ -40,6 +40,7 @@ export class AuthService {
   private readonly MAX_FAILED_ATTEMPTS = 5;
   private readonly LOCKOUT_DURATION_MINUTES = 60;
   private readonly SESSION_EXPIRY_HOURS = 24;
+  private readonly AUTH_MESSAGE_PREFIX = '[Nestera] Auth Login Nonce: ';
 
   constructor(
     private readonly userService: UserService,
@@ -373,11 +374,11 @@ export class AuthService {
       throw new UnauthorizedException('Nonce mismatch');
     }
 
-    // Verify signature
+    // Verify signature against the prefixed nonce message
     const isValidSignature = this.verifyWalletSignature(
       publicKey,
       signature,
-      storedNonceData.nonce,
+      this.AUTH_MESSAGE_PREFIX + storedNonceData.nonce,
     );
 
     if (!isValidSignature) {
@@ -486,12 +487,12 @@ export class AuthService {
       throw new UnauthorizedException('Nonce mismatch');
     }
 
-    // 3. Verify the Ed25519 signature over the nonce
+    // 3. Verify the Ed25519 signature over the prefixed nonce
     //    This proves the caller controls the private key behind publicKey.
     const isValid = this.verifyWalletSignature(
       publicKey,
       signature,
-      storedNonceData.nonce,
+      this.AUTH_MESSAGE_PREFIX + storedNonceData.nonce,
     );
     if (!isValid) {
       this.logger.warn(
@@ -527,7 +528,7 @@ export class AuthService {
   private verifyWalletSignature(
     publicKey: string,
     signature: string,
-    nonce: string,
+    message: string,
   ): boolean {
     try {
       // Convert public key string to Keypair
@@ -536,8 +537,8 @@ export class AuthService {
       // Convert signature from hex to Buffer
       const signatureBuffer = Buffer.from(signature, 'hex');
 
-      // Verify the signature against the nonce
-      return keypair.verify(Buffer.from(nonce), signatureBuffer);
+      // Verify the signature against the message
+      return keypair.verify(Buffer.from(message), signatureBuffer);
     } catch (error) {
       return false;
     }
