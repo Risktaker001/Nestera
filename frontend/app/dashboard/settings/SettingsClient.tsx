@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Monitor, Moon, Settings, Sun } from "lucide-react";
 import { type Theme, useTheme } from "../../context/ThemeContext";
+import { SettingsSkeleton } from "../../components/ui/PageSkeletons";
 
 type Prefs = {
   emailNotifications?: boolean;
@@ -40,9 +41,15 @@ const themeOptions: Array<{
 ];
 
 export default function SettingsClient() {
+  const [isLoading, setIsLoading] = useState(true);
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [saving, setSaving] = useState(false);
   const { theme, resolvedTheme, setTheme } = useTheme();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1100);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -97,7 +104,10 @@ export default function SettingsClient() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]">
+      {isLoading ? (
+        <SettingsSkeleton />
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]">
         <section className="rounded-2xl border border-[var(--color-border)] bg-linear-to-b from-[var(--color-card-start)] to-[var(--color-card-end)] p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -187,7 +197,7 @@ export default function SettingsClient() {
             </div>
           </div>
         </section>
-      </div>
+      )}
     </div>
   );
 }
