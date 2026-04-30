@@ -63,26 +63,41 @@ export default function CreateGoalForm() {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     console.log("Goal created:", data);
     reset();
+    alert("Goal created successfully!");
   };
 
   return (
-    <div className="w-full bg-[#0A1A1A] py-12 md:py-16">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#061218]/80 backdrop-blur-sm p-4">
       <div className="w-full max-w-2xl mx-auto px-6 md:px-8">
         <div className="rounded-2xl border border-white/10 bg-[#0D2626] shadow-2xl overflow-hidden relative">
+          {isSubmitting && (
+            <div className="absolute inset-0 z-10 bg-[#0A1A1A]/40 backdrop-blur-[2px] flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-10 w-10 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+                <span className="text-cyan-400 font-medium">Creating your goal...</span>
+              </div>
+            </div>
+          )}
           <div className="px-6 pt-5 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white">Create New Goal</h2>
             <button
               type="button"
               className="text-[#8C9BAB] hover:text-white transition-colors"
-              aria-label="Close"
             >
               <X size={24} />
             </button>
           </div>
-          <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5" noValidate>
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="p-6 space-y-5"
+            noValidate
+          >
             {/* Goal Name */}
             <div>
-              <label htmlFor="goalName" className="block text-[#8C9BAB] font-semibold mb-2 text-sm">
+              <label
+                htmlFor="goalName"
+                className="block text-[#8C9BAB] font-semibold mb-2 text-sm"
+              >
                 Goal Name
               </label>
               <input
@@ -106,7 +121,10 @@ export default function CreateGoalForm() {
 
             {/* Category */}
             <div>
-              <label htmlFor="category" className="block text-[#8C9BAB] font-semibold mb-2 text-sm">
+              <label
+                htmlFor="category"
+                className="block text-[#8C9BAB] font-semibold mb-2 text-sm"
+              >
                 Category
               </label>
               <div className="relative">
@@ -121,11 +139,9 @@ export default function CreateGoalForm() {
                 >
                   <option value="">Select category</option>
                   <option value="emergency">Emergency Fund</option>
-                  <option value="vacation">Vacation</option>
+                  <option value="travel">Travel</option>
                   <option value="education">Education</option>
-                  <option value="home">Home Purchase</option>
-                  <option value="vehicle">Vehicle</option>
-                  <option value="retirement">Retirement</option>
+                  <option value="housing">Housing</option>
                   <option value="other">Other</option>
                 </select>
                 <ChevronDown
@@ -139,9 +155,12 @@ export default function CreateGoalForm() {
             </div>
 
             {/* Target Amount and Starting Amount */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="targetAmount" className="block text-[#8C9BAB] font-semibold mb-2 text-sm">
+                <label
+                  htmlFor="targetAmount"
+                  className="block text-[#8C9BAB] font-semibold mb-2 text-sm"
+                >
                   Target Amount
                 </label>
                 <input
@@ -157,11 +176,16 @@ export default function CreateGoalForm() {
                   disabled={isSubmitting}
                 />
                 {errors.targetAmount && (
-                  <p className="text-red-500 text-xs mt-1">{errors.targetAmount.message}</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.targetAmount.message}
+                  </p>
                 )}
               </div>
               <div>
-                <label htmlFor="startingAmount" className="block text-[#8C9BAB] font-semibold mb-2 text-sm">
+                <label
+                  htmlFor="startingAmount"
+                  className="block text-[#8C9BAB] font-semibold mb-2 text-sm"
+                >
                   Starting Amount
                 </label>
                 <input
@@ -174,15 +198,19 @@ export default function CreateGoalForm() {
                   disabled={isSubmitting}
                 />
                 {errors.startingAmount && (
-                  <p className="text-red-500 text-xs mt-1">{errors.startingAmount.message}</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.startingAmount.message}
+                  </p>
                 )}
               </div>
             </div>
 
-            {/* Target Date and Frequency */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="targetDate" className="block text-[#8C9BAB] font-semibold mb-2 text-sm">
+                <label
+                  htmlFor="targetDate"
+                  className="block text-[#8C9BAB] font-semibold mb-2 text-sm"
+                >
                   Target Date
                 </label>
                 <input
@@ -195,11 +223,16 @@ export default function CreateGoalForm() {
                   disabled={isSubmitting}
                 />
                 {errors.targetDate && (
-                  <p className="text-red-500 text-xs mt-1">{errors.targetDate.message}</p>
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.targetDate.message}
+                  </p>
                 )}
               </div>
               <div>
-                <label htmlFor="frequency" className="block text-[#8C9BAB] font-semibold mb-2 text-sm">
+                <label
+                  htmlFor="frequency"
+                  className="block text-[#8C9BAB] font-semibold mb-2 text-sm"
+                >
                   Contribution Frequency
                 </label>
                 <div className="relative">
@@ -209,8 +242,10 @@ export default function CreateGoalForm() {
                     className="w-full px-4 py-2.5 rounded-lg bg-[#0F2D2D] border border-white/10 text-[#A1ADAD] focus:border-[#00D9C0] focus:outline-none appearance-none transition-colors"
                     disabled={isSubmitting}
                   >
+                    <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
-                    <option value="yearly">Yearly</option>
+                    <option value="bi-weekly">Bi-weekly</option>
+                    <option value="one-time">One-time</option>
                   </select>
                   <ChevronDown
                     size={18}
@@ -223,7 +258,10 @@ export default function CreateGoalForm() {
             {/* Toggles */}
             <div className="space-y-3">
               <div className="w-full px-3 py-4 rounded-lg bg-[#0F2D2D] border border-white/10 flex items-center justify-between">
-                <label htmlFor="autoSave-toggle" className="text-[#A1ADAD] font-semibold text-sm">
+                <label
+                  htmlFor="autoSave-toggle"
+                  className="text-[#A1ADAD] font-semibold text-sm"
+                >
                   Enable auto-save
                 </label>
                 <button
@@ -239,7 +277,9 @@ export default function CreateGoalForm() {
                 >
                   <span
                     className={`inline-block h-5 w-5 transform rounded-full transition-transform ${
-                      autoSave ? "translate-x-5 bg-white" : "translate-x-0.5 bg-[#A1ADAD]"
+                      autoSave
+                        ? "translate-x-5 bg-white"
+                        : "translate-x-0.5 bg-[#A1ADAD]"
                     }`}
                   />
                 </button>
@@ -247,11 +287,14 @@ export default function CreateGoalForm() {
 
               <div className="w-full px-3 py-3 rounded-lg bg-[#0F2D2D] border border-white/10 flex items-center justify-between">
                 <div>
-                  <label htmlFor="yield-toggle" className="text-[#A1ADAD] font-semibold text-sm">
+                  <label
+                    htmlFor="yield-toggle"
+                    className="text-[#A1ADAD] font-semibold text-sm"
+                  >
                     Route to yield pool
                   </label>
                   <p className="text-[#4F6565] text-xs mt-0.5">
-                    Earn 5% APY on your savings
+                    Earn up to 8% APY on your savings.
                   </p>
                 </div>
                 <button
@@ -278,7 +321,10 @@ export default function CreateGoalForm() {
 
             {/* Note */}
             <div>
-              <label htmlFor="description" className="block text-[#8C9BAB] font-semibold mb-2 text-sm">
+              <label
+                htmlFor="description"
+                className="block text-[#8C9BAB] font-semibold mb-2 text-sm"
+              >
                 Note (Optional)
               </label>
               <textarea
@@ -292,12 +338,14 @@ export default function CreateGoalForm() {
                 disabled={isSubmitting}
               />
               {errors.description && (
-                <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.description.message}
+                </p>
               )}
             </div>
 
             {/* Footer Actions */}
-            <div className="flex gap-3 pt-5">
+            <div className="flex gap-4 pt-2">
               <button
                 type="button"
                 className="flex-1 px-4 py-2.5 border border-white/10 rounded-lg text-[#8C9BAB] font-semibold hover:bg-white/10 transition-colors"

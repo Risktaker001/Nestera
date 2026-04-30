@@ -46,6 +46,7 @@ export class GoalProgressDto {
   @ApiProperty({
     enum: ['IN_PROGRESS', 'COMPLETED'],
     description: 'Current status of the goal',
+    example: 'IN_PROGRESS',
   })
   status: SavingsGoalStatus;
 

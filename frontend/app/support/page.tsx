@@ -11,17 +11,75 @@ import {
   ChevronUp,
   Send,
 } from "lucide-react";
+import { useLocale } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-const SupportSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().min(1, "Email is required").email("Invalid email address"),
-  message: z.string().min(10, "Message must be at least 10 characters"),
-});
-
-type SupportValues = z.infer<typeof SupportSchema>;
+const copy = {
+  en: {
+    title: "Help & Support",
+    subtitle: "Find answers or get in touch",
+    searchPlaceholder: "Search knowledge base…",
+    commonIssues: "Common Issues",
+    noResults: (query: string) => `No results for \"${query}\".`,
+    contactUs: "Contact Us",
+    messageSent: "Message sent!",
+    followUp: "We\'ll get back to you within 24 hours.",
+    name: "Name",
+    email: "Email",
+    message: "Message",
+    namePlaceholder: "Your name",
+    emailPlaceholder: "you@example.com",
+    messagePlaceholder: "Describe your issue…",
+    sendMessage: "Send Message",
+    sending: "Sending...",
+    videoTutorials: "Video Tutorials",
+    errors: {
+      name: "Name must be at least 2 characters",
+      emailRequired: "Email is required",
+      emailInvalid: "Invalid email address",
+      message: "Message must be at least 10 characters",
+    },
+    videos: [
+      { title: "Getting Started with Nestera", duration: "3:42" },
+      { title: "Creating Your First Savings Goal", duration: "5:10" },
+      { title: "Understanding Governance Voting", duration: "4:28" },
+      { title: "How to Stake XLM", duration: "2:55" },
+    ],
+  },
+  es: {
+    title: "Ayuda y soporte",
+    subtitle: "Encuentra respuestas o contáctanos",
+    searchPlaceholder: "Buscar en la base de conocimientos…",
+    commonIssues: "Problemas comunes",
+    noResults: (query: string) => `No hay resultados para \"${query}\".`,
+    contactUs: "Contáctanos",
+    messageSent: "¡Mensaje enviado!",
+    followUp: "Te responderemos dentro de 24 horas.",
+    name: "Nombre",
+    email: "Correo electrónico",
+    message: "Mensaje",
+    namePlaceholder: "Tu nombre",
+    emailPlaceholder: "tu@ejemplo.com",
+    messagePlaceholder: "Describe tu problema…",
+    sendMessage: "Enviar mensaje",
+    sending: "Enviando...",
+    videoTutorials: "Tutoriales en video",
+    errors: {
+      name: "El nombre debe tener al menos 2 caracteres",
+      emailRequired: "El correo electrónico es obligatorio",
+      emailInvalid: "Dirección de correo electrónico no válida",
+      message: "El mensaje debe tener al menos 10 caracteres",
+    },
+    videos: [
+      { title: "Primeros pasos con Nestera", duration: "3:42" },
+      { title: "Creando tu primer objetivo de ahorro", duration: "5:10" },
+      { title: "Entendiendo la votación de gobernanza", duration: "4:28" },
+      { title: "Cómo hacer staking de XLM", duration: "2:55" },
+    ],
+  },
+} as const;
 
 const FAQS = [
   {
@@ -46,17 +104,23 @@ const FAQS = [
   },
 ];
 
-const VIDEOS = [
-  { title: "Getting Started with Nestera", duration: "3:42" },
-  { title: "Creating Your First Savings Goal", duration: "5:10" },
-  { title: "Understanding Governance Voting", duration: "4:28" },
-  { title: "How to Stake XLM", duration: "2:55" },
-];
-
 export default function SupportPage() {
+  const locale = useLocale() as keyof typeof copy;
+  const content = copy[locale] ?? copy.en;
   const [search, setSearch] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [sent, setSent] = useState(false);
+
+  const SupportSchema = z.object({
+    name: z.string().min(2, content.errors.name),
+    email: z
+      .string()
+      .min(1, content.errors.emailRequired)
+      .email(content.errors.emailInvalid),
+    message: z.string().min(10, content.errors.message),
+  });
+
+  type SupportValues = z.infer<typeof SupportSchema>;
 
   const {
     register,
@@ -92,8 +156,8 @@ export default function SupportPage() {
           <LifeBuoy size={20} />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-white m-0">Help &amp; Support</h1>
-          <p className="text-[#5e8c96] text-sm m-0">Find answers or get in touch</p>
+          <h1 className="text-2xl font-bold text-white m-0">{content.title}</h1>
+          <p className="text-[#5e8c96] text-sm m-0">{content.subtitle}</p>
         </div>
       </div>
 
@@ -105,7 +169,7 @@ export default function SupportPage() {
         />
         <input
           type="search"
-          placeholder="Search knowledge base…"
+          placeholder={content.searchPlaceholder}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40"
@@ -117,12 +181,14 @@ export default function SupportPage() {
         <section>
           <div className="flex items-center gap-2 mb-4">
             <BookOpen size={16} className="text-cyan-400" />
-            <h2 className="text-base font-semibold text-white m-0">Common Issues</h2>
+            <h2 className="text-base font-semibold text-white m-0">
+              {content.commonIssues}
+            </h2>
           </div>
           <div className="flex flex-col gap-2">
             {filteredFaqs.length === 0 && (
               <p className="text-[#5e8c96] text-sm">
-                No results for &quot;{search}&quot;.
+                {content.noResults(search)}
               </p>
             )}
             {filteredFaqs.map((faq, i) => (
@@ -138,11 +204,16 @@ export default function SupportPage() {
                   {openFaq === i ? (
                     <ChevronUp size={15} className="text-cyan-400 shrink-0" />
                   ) : (
-                    <ChevronDown size={15} className="text-[#4a7080] shrink-0" />
+                    <ChevronDown
+                      size={15}
+                      className="text-[#4a7080] shrink-0"
+                    />
                   )}
                 </button>
                 {openFaq === i && (
-                  <p className="px-4 pb-4 text-sm text-[#7aacb5] m-0">{faq.a}</p>
+                  <p className="px-4 pb-4 text-sm text-[#7aacb5] m-0">
+                    {faq.a}
+                  </p>
                 )}
               </div>
             ))}
@@ -153,7 +224,9 @@ export default function SupportPage() {
         <section>
           <div className="flex items-center gap-2 mb-4">
             <MessageCircle size={16} className="text-cyan-400" />
-            <h2 className="text-base font-semibold text-white m-0">Contact Us</h2>
+            <h2 className="text-base font-semibold text-white m-0">
+              {content.contactUs}
+            </h2>
           </div>
           <div className="rounded-2xl border border-[rgba(8,120,120,0.12)] bg-gradient-to-b from-[rgba(6,18,20,0.55)] to-[rgba(4,12,14,0.45)] p-5">
             {sent ? (
@@ -161,15 +234,17 @@ export default function SupportPage() {
                 <div className="w-12 h-12 rounded-full bg-emerald-400/10 flex items-center justify-center text-emerald-400">
                   <Send size={22} />
                 </div>
-                <p className="text-white font-semibold m-0">Message sent!</p>
+                <p className="text-white font-semibold m-0">
+                  {content.messageSent}
+                </p>
                 <p className="text-[#5e8c96] text-sm text-center m-0">
-                  We&apos;ll get back to you within 24 hours.
+                  {content.followUp}
                 </p>
                 <button
                   onClick={() => setSent(false)}
                   className="text-cyan-400 text-sm font-medium mt-2 hover:underline cursor-pointer bg-transparent border-0"
                 >
-                  Send another message
+                  {locale === "es" ? "Enviar otro mensaje" : "Send another message"}
                 </button>
               </div>
             ) : (
@@ -180,7 +255,7 @@ export default function SupportPage() {
               >
                 <div>
                   <label htmlFor="name" className="text-xs text-[#5e8c96] mb-1 block">
-                    Name
+                    {content.name}
                   </label>
                   <input
                     {...register("name")}
@@ -188,7 +263,7 @@ export default function SupportPage() {
                     className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40 ${
                       errors.name ? "border-red-500/50" : "border-white/10"
                     }`}
-                    placeholder="Your name"
+                    placeholder={content.namePlaceholder}
                     aria-invalid={errors.name ? "true" : "false"}
                     disabled={isSubmitting}
                   />
@@ -200,7 +275,7 @@ export default function SupportPage() {
                 </div>
                 <div>
                   <label htmlFor="email" className="text-xs text-[#5e8c96] mb-1 block">
-                    Email
+                    {content.email}
                   </label>
                   <input
                     {...register("email")}
@@ -209,7 +284,7 @@ export default function SupportPage() {
                     className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40 ${
                       errors.email ? "border-red-500/50" : "border-white/10"
                     }`}
-                    placeholder="you@example.com"
+                    placeholder={content.emailPlaceholder}
                     aria-invalid={errors.email ? "true" : "false"}
                     disabled={isSubmitting}
                   />
@@ -224,7 +299,7 @@ export default function SupportPage() {
                     htmlFor="message"
                     className="text-xs text-[#5e8c96] mb-1 block"
                   >
-                    Message
+                    {content.message}
                   </label>
                   <textarea
                     {...register("message")}
@@ -233,7 +308,7 @@ export default function SupportPage() {
                     className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40 resize-none ${
                       errors.message ? "border-red-500/50" : "border-white/10"
                     }`}
-                    placeholder="Describe your issue…"
+                    placeholder={content.messagePlaceholder}
                     aria-invalid={errors.message ? "true" : "false"}
                     disabled={isSubmitting}
                   />
@@ -249,7 +324,7 @@ export default function SupportPage() {
                   className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-sm font-semibold hover:bg-cyan-500/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send size={14} />
-                  {isSubmitting ? "Sending..." : "Send Message"}
+                  {isSubmitting ? content.sending : content.sendMessage}
                 </button>
               </form>
             )}
@@ -261,10 +336,12 @@ export default function SupportPage() {
       <section>
         <div className="flex items-center gap-2 mb-4">
           <PlayCircle size={16} className="text-cyan-400" />
-          <h2 className="text-base font-semibold text-white m-0">Video Tutorials</h2>
+          <h2 className="text-base font-semibold text-white m-0">
+            {content.videoTutorials}
+          </h2>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {VIDEOS.map((v) => (
+          {content.videos.map((v) => (
             <div
               key={v.title}
               className="rounded-2xl border border-[rgba(8,120,120,0.12)] bg-gradient-to-b from-[rgba(6,18,20,0.55)] to-[rgba(4,12,14,0.45)] p-4 flex flex-col gap-3 cursor-pointer hover:border-cyan-500/25 transition-colors group"

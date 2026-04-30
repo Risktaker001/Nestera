@@ -1,27 +1,50 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { formatDate } from "../lib/intl";
+import { env } from "../config/env";
 
-export const metadata: Metadata = {
-  title: "Privacy Policy — Nestera",
-  description: "Privacy Policy for Nestera - Decentralized Savings on Stellar",
-};
+const pageCopy = {
+  en: {
+    title: "Privacy Policy",
+    metadataTitle: "Privacy Policy — Nestera",
+    metadataDescription:
+      "Privacy Policy for Nestera - Decentralized Savings on Stellar",
+    lastUpdated: "Last updated:",
+  },
+  es: {
+    title: "Política de privacidad",
+    metadataTitle: "Política de privacidad — Nestera",
+    metadataDescription:
+      "Política de privacidad de Nestera - Ahorros descentralizados en Stellar",
+    lastUpdated: "Última actualización:",
+  },
+} as const;
+
+export function generateMetadata(): Metadata {
+  const locale = cookies().get("nestera-locale")?.value === "es" ? "es" : "en";
+  const content = pageCopy[locale];
+
+  return {
+    title: content.metadataTitle,
+    description: content.metadataDescription,
+  };
+}
 
 export default function PrivacyPage() {
+  const locale = cookies().get("nestera-locale")?.value === "es" ? "es" : "en";
+  const content = pageCopy[locale];
+
   return (
     <main className="min-h-screen bg-[#061a1a]">
       <Navbar />
       <div className="container mx-auto px-4 py-16 max-w-4xl">
-        <h1 className="text-4xl font-bold text-white mb-8">Privacy Policy</h1>
+        <h1 className="text-4xl font-bold text-white mb-8">{content.title}</h1>
 
         <div className="prose prose-invert max-w-none">
           <p className="text-gray-300 mb-8">
-            Last updated:{" "}
-            {new Date().toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+            {content.lastUpdated} {formatDate(new Date(), locale)}
           </p>
 
           <section className="mb-8">
@@ -29,10 +52,11 @@ export default function PrivacyPage() {
               1. Introduction
             </h2>
             <p className="text-gray-300 mb-4">
-              Nestera (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) respects your privacy and is
-              committed to protecting your personal data. This privacy policy
-              explains how we collect, use, disclose, and safeguard your
-              information when you use our decentralized savings platform.
+              Nestera (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;)
+              respects your privacy and is committed to protecting your personal
+              data. This privacy policy explains how we collect, use, disclose,
+              and safeguard your information when you use our decentralized
+              savings platform.
             </p>
           </section>
 
@@ -187,7 +211,7 @@ export default function PrivacyPage() {
             </ul>
             <p className="text-gray-300 mb-4">
               To exercise these rights, please contact us at
-              privacy@nestera.com.
+              {env.legalEmail}.
             </p>
           </section>
 
@@ -236,7 +260,7 @@ export default function PrivacyPage() {
               practices, please contact us at:
             </p>
             <p className="text-gray-300 mb-4">
-              Email: privacy@nestera.com
+              Email: {env.legalEmail}
               <br />
               Address: [Company Address]
             </p>

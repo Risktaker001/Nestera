@@ -5,6 +5,8 @@ import { Download, History, Loader2, Search, ChevronDown, Inbox } from "lucide-r
 import TransactionRow, { TransactionType, TransactionStatus } from "./components/TransactionRow";
 import { useToast } from "../../context/ToastContext";
 
+import { TransactionsSkeleton } from "../../components/ui/PageSkeletons";
+
 type TransactionRowData = {
   date: string;
   time: string;
@@ -54,12 +56,17 @@ function downloadTextFile(
 
 export default function TransactionHistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const toast = useToast();
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => setIsLoading(false), 750);
-    return () => window.clearTimeout(timeoutId);
+    const loadTimer = window.setTimeout(() => setIsLoading(false), 750);
+    const timeoutTimer = window.setTimeout(() => setShowTimeoutMessage(true), 5000);
+    return () => {
+      window.clearTimeout(loadTimer);
+      window.clearTimeout(timeoutTimer);
+    };
   }, []);
 
   const transactions: TransactionRowData[] = [
@@ -196,14 +203,13 @@ export default function TransactionHistoryPage() {
 
       <div className="rounded-2xl border border-white/5 bg-[#0e2330]">
         {isLoading ? (
-          <div className="space-y-4 p-4" aria-live="polite" aria-busy="true">
-            <div className="inline-flex items-center gap-2 text-xs text-[#7fa9b0]">
-              <Loader2 size={14} className="animate-spin text-cyan-400" />
-              Loading transaction history...
-            </div>
-            {[1, 2, 3, 4].map((row) => (
-              <div key={row} className="h-[72px] animate-pulse rounded-xl bg-white/5" />
-            ))}
+          <div className="p-4" aria-live="polite" aria-busy="true">
+            <TransactionsSkeleton />
+            {showTimeoutMessage && (
+              <p className="mt-4 text-center text-sm text-[var(--color-text-muted)] animate-pulse">
+                Still loading history... This is taking longer than expected.
+              </p>
+            )}
           </div>
         ) : hasTransactions ? (
           <div className="overflow-x-auto">

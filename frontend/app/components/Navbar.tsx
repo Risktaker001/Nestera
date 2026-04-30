@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Loader2, Wallet } from "lucide-react";
 import ThemeToggle from "./ThemeToggle";
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useTranslations, useLocale } from "next-intl";
 import { useWallet } from "../context/WalletContext";
 import { useToast } from "../context/ToastContext";
 import { useFocusTrap } from "../hooks/useFocusTrap";
@@ -12,16 +14,16 @@ import { useClickOutside } from "../hooks/useClickOutside";
 import { useBodyScrollLock } from "../hooks/useBodyScrollLock";
 
 interface NavLink {
-  label: string;
+  key: string;
   href: string;
 }
 
 const navLinks: NavLink[] = [
-  { label: "Features", href: "/features" },
-  { label: "Savings", href: "/savings" },
-  { label: "Dashboard", href: "/dashboard" },
-  { label: "Community", href: "/community" },
-  { label: "Docs", href: "/docs" },
+  { key: "features", href: "/features" },
+  { key: "savings", href: "/savings" },
+  { key: "dashboard", href: "/dashboard" },
+  { key: "community", href: "/community" },
+  { key: "docs", href: "/docs" },
 ];
 
 const navLinkBase =
@@ -36,10 +38,11 @@ const mobileLinkActive =
 const Navbar: React.FC = () => {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { address, network, isConnected, isLoading, error, connect } = useWallet();
+  const { address, network, isConnected, isLoading, error, connect } =
+    useWallet();
   const toast = useToast();
   const previousConnectedRef = useRef(isConnected);
-  
+
   // Refs for click outside detection
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -51,6 +54,9 @@ const Navbar: React.FC = () => {
   const shortAddress = address
     ? `${address.slice(0, 4)}...${address.slice(-4)}`
     : null;
+
+  const t = useTranslations();
+  const locale = useLocale();
 
   // Close mobile menu handler
   const closeMobileMenu = () => {
@@ -79,13 +85,19 @@ const Navbar: React.FC = () => {
 
   useEffect(() => {
     if (error) {
-      toast.error("Wallet connection failed", error);
+      toast.error(
+        t?.("toast.walletFailed") ?? "Wallet connection failed",
+        error,
+      );
     }
   }, [error, toast]);
 
   useEffect(() => {
     if (!previousConnectedRef.current && isConnected && shortAddress) {
-      toast.success("Wallet connected", shortAddress);
+      toast.success(
+        t?.("toast.walletConnected") ?? "Wallet connected",
+        shortAddress,
+      );
     }
     previousConnectedRef.current = isConnected;
   }, [isConnected, shortAddress, toast]);
@@ -116,7 +128,9 @@ const Navbar: React.FC = () => {
         className={`inline-flex items-center justify-center gap-2 rounded-full border-none bg-[var(--color-accent)] px-6 py-3 text-sm font-semibold text-[#061a1a] shadow-sm hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100 ${mobile ? "mt-4 w-full" : "hidden sm:inline-flex"}`}
       >
         {isLoading ? <Loader2 size={14} className="animate-spin" /> : null}
-        {isLoading ? "Connecting..." : "Connect Wallet"}
+        {isLoading
+          ? (t?.("actions.connecting") ?? "Connecting...")
+          : (t?.("actions.connectWallet") ?? "Connect Wallet")}
       </button>
     );
   };
@@ -127,7 +141,7 @@ const Navbar: React.FC = () => {
         <div className="flex h-16 items-center justify-between px-4 sm:px-6 md:px-[30px]">
           <div className="shrink-0">
             <Link
-              href="/"
+              href={`/${locale}`}
               className="flex items-center gap-2 no-underline transition-transform duration-200 hover:scale-[1.02]"
             >
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent)] p-0 text-lg font-bold text-[#061a1a]">
@@ -143,16 +157,23 @@ const Navbar: React.FC = () => {
             {navLinks.map((link) => (
               <Link
                 key={link.href}
-                href={link.href}
-                className={isActiveLink(link.href) ? `${navLinkBase} ${navLinkActive}` : navLinkBase}
+                href={`/${locale}${link.href}`}
+                className={
+                  isActiveLink(link.href)
+                    ? `${navLinkBase} ${navLinkActive}`
+                    : navLinkBase
+                }
               >
-                {link.label}
+                {t?.(`nav.${link.key}`) ?? link.key}
               </Link>
             ))}
           </div>
 
           <div className="flex items-center gap-3">
             <ThemeToggle compact className="hidden md:flex" />
+            <div className="hidden md:flex">
+              <LanguageSwitcher />
+            </div>
             <WalletButton />
 
             <button
@@ -162,7 +183,11 @@ const Navbar: React.FC = () => {
               className="inline-flex items-center justify-center rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-2 text-[var(--color-text-muted)] hover:text-[var(--color-text)] md:hidden"
               aria-expanded={isMobileMenuOpen}
               aria-controls="mobile-menu"
-              aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-label={
+                isMobileMenuOpen
+                  ? "Close navigation menu"
+                  : "Open navigation menu"
+              }
             >
               {isMobileMenuOpen ? (
                 <svg
@@ -211,12 +236,16 @@ const Navbar: React.FC = () => {
           {navLinks.map((link) => (
             <Link
               key={link.href}
-              href={link.href}
-              className={isActiveLink(link.href) ? `${mobileLinkBase} ${mobileLinkActive}` : mobileLinkBase}
+              href={`/${locale}${link.href}`}
+              className={
+                isActiveLink(link.href)
+                  ? `${mobileLinkBase} ${mobileLinkActive}`
+                  : mobileLinkBase
+              }
               onClick={closeMobileMenu}
               aria-current={isActiveLink(link.href) ? "page" : undefined}
             >
-              {link.label}
+              {t?.(`nav.${link.key}`) ?? link.key}
             </Link>
           ))}
         </div>

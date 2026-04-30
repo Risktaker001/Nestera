@@ -1,28 +1,50 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { formatDate } from "../lib/intl";
+import { env } from "../config/env";
 
-export const metadata: Metadata = {
-  title: "Terms of Service — Nestera",
-  description:
-    "Terms of Service for Nestera - Decentralized Savings on Stellar",
-};
+const pageCopy = {
+  en: {
+    title: "Terms of Service",
+    metadataTitle: "Terms of Service — Nestera",
+    metadataDescription:
+      "Terms of Service for Nestera - Decentralized Savings on Stellar",
+    lastUpdated: "Last updated:",
+  },
+  es: {
+    title: "Términos del servicio",
+    metadataTitle: "Términos del servicio — Nestera",
+    metadataDescription:
+      "Términos del servicio de Nestera - Ahorros descentralizados en Stellar",
+    lastUpdated: "Última actualización:",
+  },
+} as const;
+
+export function generateMetadata(): Metadata {
+  const locale = cookies().get("nestera-locale")?.value === "es" ? "es" : "en";
+  const content = pageCopy[locale];
+
+  return {
+    title: content.metadataTitle,
+    description: content.metadataDescription,
+  };
+}
 
 export default function TermsPage() {
+  const locale = cookies().get("nestera-locale")?.value === "es" ? "es" : "en";
+  const content = pageCopy[locale];
+
   return (
     <main className="min-h-screen bg-[#061a1a]">
       <Navbar />
       <div className="container mx-auto px-4 py-16 max-w-4xl">
-        <h1 className="text-4xl font-bold text-white mb-8">Terms of Service</h1>
+        <h1 className="text-4xl font-bold text-white mb-8">{content.title}</h1>
 
         <div className="prose prose-invert max-w-none">
           <p className="text-gray-300 mb-8">
-            Last updated:{" "}
-            {new Date().toLocaleDateString("en-US", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
+            {content.lastUpdated} {formatDate(new Date(), locale)}
           </p>
 
           <section className="mb-8">
@@ -30,10 +52,10 @@ export default function TermsPage() {
               1. Acceptance of Terms
             </h2>
             <p className="text-gray-300 mb-4">
-              By accessing and using Nestera (&quot;the Service&quot;), you accept and
-              agree to be bound by the terms and provision of this agreement. If
-              you do not agree to abide by the above, please do not use this
-              service.
+              By accessing and using Nestera (&quot;the Service&quot;), you
+              accept and agree to be bound by the terms and provision of this
+              agreement. If you do not agree to abide by the above, please do
+              not use this service.
             </p>
           </section>
 
@@ -79,8 +101,8 @@ export default function TermsPage() {
               4. Service Limitations
             </h2>
             <p className="text-gray-300 mb-4">
-              Nestera provides the service &quot;as is&quot; and &quot;as available&quot;. We do not
-              guarantee:
+              Nestera provides the service &quot;as is&quot; and &quot;as
+              available&quot;. We do not guarantee:
             </p>
             <ul className="list-disc list-inside text-gray-300 mb-4 space-y-2">
               <li>Uninterrupted or error-free operation of the service</li>
@@ -170,7 +192,7 @@ export default function TermsPage() {
             </h2>
             <p className="text-gray-300 mb-4">
               If you have any questions about these Terms of Service, please
-              contact us at legal@nestera.com.
+              contact us at {env.legalEmail}.
             </p>
           </section>
         </div>

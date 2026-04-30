@@ -1,0 +1,24 @@
+{
+  "title": "Nestera - Decentralized Savings on Stellar",
+  "description": "Secure, transparent savings powered by Stellar & Soroban",
+  "nav": {
+    "features": "Features",
+    "savings": "Savings",
+    "dashboard": "Dashboard",
+    "community": "Community",
+    "docs": "Docs"
+  },
+  "actions": {
+    "connectWallet": "Connect Wallet",
+    "connecting": "Connecting..."
+  },
+  "toast": {
+    "walletConnected": "Wallet connected",
+    "walletFailed": "Wallet connection failed"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "es": "Español"
+  }
+}

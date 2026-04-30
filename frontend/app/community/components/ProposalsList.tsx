@@ -2,8 +2,10 @@
 
 import React from 'react';
 import { CheckCircle2, Clock, XCircle, ArrowUpRight } from 'lucide-react';
+import { ProposalsSkeleton } from '../../ui/PageSkeletons';
 
 const proposals = [
+// ... existing proposals
   {
     id: 'NP-84',
     title: 'Implement Multi-Asset Yield Optimization',
@@ -64,6 +66,23 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
 };
 
 const ProposalsList: React.FC = () => {
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1300);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return (
+      <section className="w-full py-20 bg-[#061a1a]">
+        <div className="max-w-[1200px] mx-auto px-12 max-md:px-6">
+          <ProposalsSkeleton />
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section className="w-full py-20 bg-[#061a1a]">
       <div className="max-w-[1200px] mx-auto px-12 max-md:px-6">

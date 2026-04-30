@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Monitor, Moon, Settings, Sun } from "lucide-react";
 import { type Theme, useTheme } from "../../context/ThemeContext";
+import { SettingsSkeleton } from "../../components/ui/PageSkeletons";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -45,6 +46,7 @@ const themeOptions: Array<{
 ];
 
 export default function SettingsClient() {
+  const [isLoading, setIsLoading] = useState(true);
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -68,6 +70,11 @@ export default function SettingsClient() {
   });
 
   const prefs = watch();
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1100);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -122,123 +129,127 @@ export default function SettingsClient() {
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]">
-        <section className="rounded-2xl border border-[var(--color-border)] bg-linear-to-b from-[var(--color-card-start)] to-[var(--color-card-end)] p-6">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="m-0 text-lg font-semibold text-[var(--color-text)]">
-                Theme preference
-              </h2>
-              <p className="mt-2 text-sm text-[var(--color-text-muted)]">
-                Choose how Nestera should look across public pages, dashboard
-                shells, and analytics.
-              </p>
+      {isLoading ? (
+        <SettingsSkeleton />
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-[1.1fr_1.4fr]">
+          <section className="rounded-2xl border border-[var(--color-border)] bg-linear-to-b from-[var(--color-card-start)] to-[var(--color-card-end)] p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="m-0 text-lg font-semibold text-[var(--color-text)]">
+                  Theme preference
+                </h2>
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
+                  Choose how Nestera should look across public pages, dashboard
+                  shells, and analytics.
+                </p>
+              </div>
+              <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-accent)]">
+                Resolved {resolvedThemeLabel}
+              </span>
             </div>
-            <span className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-accent)]">
-              Resolved {resolvedThemeLabel}
-            </span>
-          </div>
 
-          <div className="mt-5 space-y-3">
-            {themeOptions.map(({ value, label, description, Icon }) => {
-              const selected = theme === value;
+            <div className="mt-5 space-y-3">
+              {themeOptions.map(({ value, label, description, Icon }) => {
+                const selected = theme === value;
 
-              return (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setTheme(value)}
-                  aria-pressed={selected}
-                  className={`flex w-full items-start gap-4 rounded-2xl border p-4 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)] ${
-                    selected
-                      ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)]"
-                      : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-strong)]"
-                  }`}
-                >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-strong)] text-[var(--color-accent)]">
-                    <Icon size={18} />
-                  </span>
-                  <span className="flex-1">
-                    <span className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
-                      {label}
-                      {selected ? (
-                        <span className="rounded-full bg-[var(--color-surface)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[var(--color-accent)]">
-                          Active
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setTheme(value)}
+                    aria-pressed={selected}
+                    className={`flex w-full items-start gap-4 rounded-2xl border p-4 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-background)] ${
+                      selected
+                        ? "border-[var(--color-accent)] bg-[var(--color-accent-soft)]"
+                        : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-border-strong)]"
+                    }`}
+                  >
+                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-strong)] text-[var(--color-accent)]">
+                      <Icon size={18} />
+                    </span>
+                    <span className="flex-1">
+                      <span className="flex items-center gap-2 text-sm font-semibold text-[var(--color-text)]">
+                        {label}
+                        {selected ? (
+                          <span className="rounded-full bg-[var(--color-surface)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[var(--color-accent)]">
+                            Active
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="mt-1 block text-sm text-[var(--color-text-muted)]">
+                        {description}
+                      </span>
+                      {value === "system" ? (
+                        <span className="mt-2 block text-xs text-[var(--color-text-soft)]">
+                          Currently following your device&apos;s{" "}
+                          {resolvedThemeLabel.toLowerCase()} appearance.
                         </span>
                       ) : null}
                     </span>
-                    <span className="mt-1 block text-sm text-[var(--color-text-muted)]">
-                      {description}
-                    </span>
-                    {value === "system" ? (
-                      <span className="mt-2 block text-xs text-[var(--color-text-soft)]">
-                        Currently following your device&apos;s{" "}
-                        {resolvedThemeLabel.toLowerCase()} appearance.
-                      </span>
-                    ) : null}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-[var(--color-border)] bg-linear-to-b from-[var(--color-card-start)] to-[var(--color-card-end)] p-6 md:p-8">
-          <h2 className="mb-4 text-lg font-semibold text-[var(--color-text)]">
-            Notifications
-          </h2>
-          <form
-            onSubmit={handleSubmit(onSubmit)}
-            className="mx-auto flex max-w-xl flex-col gap-4 text-left"
-          >
-            <PreferenceToggle
-              label="Email Notifications"
-              description="Receive emails about important account events"
-              checked={!!prefs.emailNotifications}
-              onChange={() =>
-                setValue("emailNotifications", !prefs.emailNotifications, {
-                  shouldDirty: true,
-                })
-              }
-            />
-            <PreferenceToggle
-              label="In-app Notifications"
-              description="Show notifications inside the app"
-              checked={!!prefs.inAppNotifications}
-              onChange={() =>
-                setValue("inAppNotifications", !prefs.inAppNotifications, {
-                  shouldDirty: true,
-                })
-              }
-            />
-            <PreferenceToggle
-              label="Goal Milestone Notifications"
-              description="Receive celebratory messages when goals reach 25%, 50%, 75%, and 100%."
-              checked={!!prefs.milestoneNotifications}
-              onChange={() =>
-                setValue("milestoneNotifications", !prefs.milestoneNotifications, {
-                  shouldDirty: true,
-                })
-              }
-            />
-
-            <div className="flex items-center justify-end gap-3 mt-2">
-              {saveSuccess && (
-                <span className="text-emerald-500 text-sm font-medium">
-                  Preferences saved!
-                </span>
-              )}
-              <button
-                type="submit"
-                className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[#061a1a] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70 transition-all active:scale-95"
-                disabled={isSubmitting || !isDirty}
-              >
-                {isSubmitting ? "Saving..." : "Save Preferences"}
-              </button>
+                  </button>
+                );
+              })}
             </div>
-          </form>
-        </section>
-      </div>
+          </section>
+
+          <section className="rounded-2xl border border-[var(--color-border)] bg-linear-to-b from-[var(--color-card-start)] to-[var(--color-card-end)] p-6 md:p-8">
+            <h2 className="mb-4 text-lg font-semibold text-[var(--color-text)]">
+              Notifications
+            </h2>
+            <form
+              onSubmit={handleSubmit(onSubmit)}
+              className="mx-auto flex max-w-xl flex-col gap-4 text-left"
+            >
+              <PreferenceToggle
+                label="Email Notifications"
+                description="Receive emails about important account events"
+                checked={!!prefs.emailNotifications}
+                onChange={() =>
+                  setValue("emailNotifications", !prefs.emailNotifications, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+              <PreferenceToggle
+                label="In-app Notifications"
+                description="Show notifications inside the app"
+                checked={!!prefs.inAppNotifications}
+                onChange={() =>
+                  setValue("inAppNotifications", !prefs.inAppNotifications, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+              <PreferenceToggle
+                label="Goal Milestone Notifications"
+                description="Receive celebratory messages when goals reach 25%, 50%, 75%, and 100%."
+                checked={!!prefs.milestoneNotifications}
+                onChange={() =>
+                  setValue("milestoneNotifications", !prefs.milestoneNotifications, {
+                    shouldDirty: true,
+                  })
+                }
+              />
+
+              <div className="flex items-center justify-end gap-3 mt-2">
+                {saveSuccess && (
+                  <span className="text-emerald-500 text-sm font-medium">
+                    Preferences saved!
+                  </span>
+                )}
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[var(--color-accent)] px-4 py-2 text-sm font-semibold text-[#061a1a] hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-70 transition-all active:scale-95"
+                  disabled={isSubmitting || !isDirty}
+                >
+                  {isSubmitting ? "Saving..." : "Save Preferences"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

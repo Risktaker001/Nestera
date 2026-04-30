@@ -10,6 +10,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiParam } from '@nestjs/swagger';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -99,13 +100,24 @@ export class GovernanceProposalsController {
       'List of proposals with computed vote percentages and timeline boundaries',
     type: [ProposalListItemDto],
   })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid status filter value',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests - rate limit exceeded',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error',
+  })
   getProposals(
     @Query('status') statusKey?: string,
   ): Promise<ProposalListItemDto[]> {
     let status: ProposalStatus | undefined;
 
     if (statusKey !== undefined) {
-      // Accept both enum keys (ACTIVE) and enum values (Active)
       const byKey =
         ProposalStatus[statusKey.toUpperCase() as keyof typeof ProposalStatus];
       const byValue = Object.values(ProposalStatus).includes(
@@ -163,10 +175,32 @@ export class GovernanceProposalsController {
     description: 'Zero-based page index (20 votes per page)',
     example: 0,
   })
+  @ApiParam({
+    name: 'id',
+    description: 'On-chain proposal ID',
+    type: 'integer',
+    example: 42,
+  })
   @ApiResponse({
     status: 200,
     description: 'Vote tally and recent voter list for proposal',
     type: ProposalVotesResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid proposal ID or limit parameter',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Proposal not found',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests - rate limit exceeded',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Internal server error',
   })
   getProposalVotes(
     @Param('id', ParseIntPipe) id: number,

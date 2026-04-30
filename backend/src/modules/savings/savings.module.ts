@@ -28,6 +28,9 @@ import { GroupSavingsService } from './group-savings.service';
 import { GroupSavingsController } from './group-savings.controller';
 import { AutoDepositSchedule } from './entities/auto-deposit-schedule.entity';
 import { AutoDepositService } from './services/auto-deposit.service';
+import { MilestoneQueueService } from './services/milestone-queue.service';
+import { InterestCalculationService } from './services/interest-calculation.service';
+import { InterestHistory } from './entities/interest-history.entity';
 
 @Module({
   imports: [
@@ -49,6 +52,7 @@ import { AutoDepositService } from './services/auto-deposit.service';
       GroupPoolMember,
       SavingsGroupActivity,
       AutoDepositSchedule,
+      InterestHistory,
     ]),
   ],
   controllers: [SavingsController, WaitlistController, GroupSavingsController],
@@ -56,11 +60,13 @@ import { AutoDepositService } from './services/auto-deposit.service';
     SavingsService,
     PredictiveEvaluatorService,
     MilestoneService,
+    MilestoneQueueService,
     RecommendationService,
     WaitlistService,
     ExperimentsService,
     GroupSavingsService,
     AutoDepositService,
+    InterestCalculationService,
   ],
   exports: [SavingsService, WaitlistService, ExperimentsService],
 })

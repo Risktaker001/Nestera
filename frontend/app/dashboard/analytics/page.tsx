@@ -1,7 +1,10 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import { MoreHorizontal, PieChart } from "lucide-react";
 import PortfolioPerformanceChart from "./PortfolioPerformanceChart";
 import AnalyticsComparisonGrid from "./AnalyticsComparisonGrid";
+import { AnalyticsSkeleton } from "../../components/ui/PageSkeletons";
 
 export const metadata = { title: "Analytics – Nestera" };
 
@@ -20,6 +23,16 @@ const yieldBreakdown = [
 ];
 
 export default function AnalyticsPage() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 1400);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <AnalyticsSkeleton />;
+  }
   return (
     <div className="w-full">
       <div className="mb-6 flex items-center gap-3">

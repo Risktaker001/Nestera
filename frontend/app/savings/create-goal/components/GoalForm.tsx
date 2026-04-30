@@ -62,9 +62,9 @@ export default function GoalForm() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-7">
           <div className="rounded-3xl border border-white/5 bg-linear-to-br from-[rgba(6,26,26,0.82)] to-[rgba(4,14,16,0.6)] shadow-[0_18px_45px_rgba(0,0,0,0.32)] backdrop-blur-sm p-6 md:p-8">
-            <div className="flex items-start justify-between gap-4 mb-6">
+            <div className="flex items-start justify-between mb-8">
               <div>
-                <h2 className="text-xl md:text-2xl font-bold text-white m-0 tracking-tight">
+                <h2 className="text-white text-xl font-bold m-0">
                   Goal details
                 </h2>
                 <p className="text-[#6a8a93] text-sm m-0 mt-2">
@@ -112,7 +112,7 @@ export default function GoalForm() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label
                     htmlFor="category"
@@ -276,4 +276,3 @@ export default function GoalForm() {
     </div>
   );
 }
-
