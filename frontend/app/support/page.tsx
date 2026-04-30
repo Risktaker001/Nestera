@@ -12,6 +12,9 @@ import {
   Send,
 } from "lucide-react";
 import { useLocale } from "next-intl";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 
 const copy = {
   en: {
@@ -30,7 +33,14 @@ const copy = {
     emailPlaceholder: "you@example.com",
     messagePlaceholder: "Describe your issue…",
     sendMessage: "Send Message",
+    sending: "Sending...",
     videoTutorials: "Video Tutorials",
+    errors: {
+      name: "Name must be at least 2 characters",
+      emailRequired: "Email is required",
+      emailInvalid: "Invalid email address",
+      message: "Message must be at least 10 characters",
+    },
     videos: [
       { title: "Getting Started with Nestera", duration: "3:42" },
       { title: "Creating Your First Savings Goal", duration: "5:10" },
@@ -54,7 +64,14 @@ const copy = {
     emailPlaceholder: "tu@ejemplo.com",
     messagePlaceholder: "Describe tu problema…",
     sendMessage: "Enviar mensaje",
+    sending: "Enviando...",
     videoTutorials: "Tutoriales en video",
+    errors: {
+      name: "El nombre debe tener al menos 2 caracteres",
+      emailRequired: "El correo electrónico es obligatorio",
+      emailInvalid: "Dirección de correo electrónico no válida",
+      message: "El mensaje debe tener al menos 10 caracteres",
+    },
     videos: [
       { title: "Primeros pasos con Nestera", duration: "3:42" },
       { title: "Creando tu primer objetivo de ahorro", duration: "5:10" },
@@ -87,20 +104,36 @@ const FAQS = [
   },
 ];
 
-const VIDEOS = [
-  { title: "Getting Started with Nestera", duration: "3:42" },
-  { title: "Creating Your First Savings Goal", duration: "5:10" },
-  { title: "Understanding Governance Voting", duration: "4:28" },
-  { title: "How to Stake XLM", duration: "2:55" },
-];
-
 export default function SupportPage() {
   const locale = useLocale() as keyof typeof copy;
   const content = copy[locale] ?? copy.en;
   const [search, setSearch] = useState("");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [sent, setSent] = useState(false);
+
+  const SupportSchema = z.object({
+    name: z.string().min(2, content.errors.name),
+    email: z
+      .string()
+      .min(1, content.errors.emailRequired)
+      .email(content.errors.emailInvalid),
+    message: z.string().min(10, content.errors.message),
+  });
+
+  type SupportValues = z.infer<typeof SupportSchema>;
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<SupportValues>({
+    resolver: zodResolver(SupportSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      message: "",
+    },
+  });
 
   const filteredFaqs = FAQS.filter(
     (f) =>
@@ -108,8 +141,10 @@ export default function SupportPage() {
       f.a.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: SupportValues) => {
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    console.log("Support request sent:", data);
     setSent(true);
   };
 
@@ -205,57 +240,91 @@ export default function SupportPage() {
                 <p className="text-[#5e8c96] text-sm text-center m-0">
                   {content.followUp}
                 </p>
+                <button
+                  onClick={() => setSent(false)}
+                  className="text-cyan-400 text-sm font-medium mt-2 hover:underline cursor-pointer bg-transparent border-0"
+                >
+                  {locale === "es" ? "Enviar otro mensaje" : "Send another message"}
+                </button>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <form
+                onSubmit={handleSubmit(onSubmit)}
+                className="flex flex-col gap-4"
+                noValidate
+              >
                 <div>
-                  <label className="text-xs text-[#5e8c96] mb-1 block">
+                  <label htmlFor="name" className="text-xs text-[#5e8c96] mb-1 block">
                     {content.name}
                   </label>
                   <input
-                    required
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40"
+                    {...register("name")}
+                    id="name"
+                    className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40 ${
+                      errors.name ? "border-red-500/50" : "border-white/10"
+                    }`}
                     placeholder={content.namePlaceholder}
+                    aria-invalid={errors.name ? "true" : "false"}
+                    disabled={isSubmitting}
                   />
+                  {errors.name && (
+                    <p className="text-red-500 text-[10px] mt-1">
+                      {errors.name.message}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="text-xs text-[#5e8c96] mb-1 block">
+                  <label htmlFor="email" className="text-xs text-[#5e8c96] mb-1 block">
                     {content.email}
                   </label>
                   <input
-                    required
+                    {...register("email")}
+                    id="email"
                     type="email"
-                    value={form.email}
-                    onChange={(e) =>
-                      setForm({ ...form, email: e.target.value })
-                    }
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40"
+                    className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40 ${
+                      errors.email ? "border-red-500/50" : "border-white/10"
+                    }`}
                     placeholder={content.emailPlaceholder}
+                    aria-invalid={errors.email ? "true" : "false"}
+                    disabled={isSubmitting}
                   />
+                  {errors.email && (
+                    <p className="text-red-500 text-[10px] mt-1">
+                      {errors.email.message}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="text-xs text-[#5e8c96] mb-1 block">
+                  <label
+                    htmlFor="message"
+                    className="text-xs text-[#5e8c96] mb-1 block"
+                  >
                     {content.message}
                   </label>
                   <textarea
-                    required
+                    {...register("message")}
+                    id="message"
                     rows={4}
-                    value={form.message}
-                    onChange={(e) =>
-                      setForm({ ...form, message: e.target.value })
-                    }
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40 resize-none"
+                    className={`w-full px-3 py-2.5 rounded-xl bg-white/5 border text-sm text-white placeholder-[#4a7080] focus:outline-none focus:border-cyan-500/40 resize-none ${
+                      errors.message ? "border-red-500/50" : "border-white/10"
+                    }`}
                     placeholder={content.messagePlaceholder}
+                    aria-invalid={errors.message ? "true" : "false"}
+                    disabled={isSubmitting}
                   />
+                  {errors.message && (
+                    <p className="text-red-500 text-[10px] mt-1">
+                      {errors.message.message}
+                    </p>
+                  )}
                 </div>
                 <button
                   type="submit"
-                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-sm font-semibold hover:bg-cyan-500/30 transition-colors cursor-pointer"
+                  disabled={isSubmitting}
+                  className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 text-sm font-semibold hover:bg-cyan-500/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send size={14} />
-                  {content.sendMessage}
+                  {isSubmitting ? content.sending : content.sendMessage}
                 </button>
               </form>
             )}
