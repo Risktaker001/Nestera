@@ -197,32 +197,26 @@ curl http://localhost:3001/health
 
 ## 🌐 4. Frontend Setup (Next.js)
 ```bash
-cd apps/web
-npm install
+cd frontend
+pnpm install
 ```
 
 ### Create Environment File
 
-Create `.env.local` in `apps/web/`:
+Create `.env.local` in `frontend/`:
 ```env
-# Stellar Network
-NEXT_PUBLIC_STELLAR_NETWORK=testnet
-NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
-NEXT_PUBLIC_HORIZON_URL=https://horizon-testnet.stellar.org
-
-# Contract
-NEXT_PUBLIC_CONTRACT_ID=YOUR_DEPLOYED_CONTRACT_ID
-
-# Backend API
-NEXT_PUBLIC_API_URL=http://localhost:3001
-
-# Wallet Connect (optional)
-NEXT_PUBLIC_WALLET_CONNECT_PROJECT_ID=your_project_id
+NEXT_PUBLIC_BASE_URL=https://nestera.app
+NEXT_PUBLIC_HORIZON_PUBLIC_URL=https://horizon.stellar.org
+NEXT_PUBLIC_HORIZON_TESTNET_URL=https://horizon-testnet.stellar.org
+NEXT_PUBLIC_COINGECKO_API_URL=https://api.coingecko.com/api/v3
+NEXT_PUBLIC_DISCORD_URL=https://discord.gg/nestera
+NEXT_PUBLIC_TELEGRAM_URL=https://t.me/nestera
+NEXT_PUBLIC_GITHUB_URL=https://github.com/nestera
 ```
 
 ### Run Development Server
 ```bash
-npm run dev
+pnpm dev
 ```
 
 Frontend should now be running at `http://localhost:3000`

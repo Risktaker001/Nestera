@@ -5,6 +5,7 @@ import { TypeOrmHealthIndicator } from './indicators/typeorm.health';
 import { IndexerHealthIndicator } from './indicators/indexer.health';
 import { RpcHealthIndicator } from './indicators/rpc.health';
 import { ConnectionPoolHealthIndicator } from './indicators/connection-pool.health';
+import { ConnectionPoolService } from '../../common/database/connection-pool.config';
 import {
   RedisHealthIndicator,
   EmailServiceHealthIndicator,
@@ -22,6 +23,7 @@ export class HealthController {
     private readonly indexer: IndexerHealthIndicator,
     private readonly rpc: RpcHealthIndicator,
     private readonly connectionPool: ConnectionPoolHealthIndicator,
+    private readonly connectionPoolService: ConnectionPoolService,
     private readonly redis: RedisHealthIndicator,
     private readonly email: EmailServiceHealthIndicator,
     private readonly sorobanRpc: SorobanRpcHealthIndicator,
@@ -202,5 +204,17 @@ export class HealthController {
   })
   getStats() {
     return this.healthHistory.getAllStats();
+  }
+
+  @Get('pool/metrics')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Database connection pool metrics',
+    description:
+      'Current pool utilisation, rolling 5-minute average, and recent samples. Useful for tuning DB_POOL_MAX/MIN and spotting saturation.',
+  })
+  getPoolMetrics(@Query('window') window?: string) {
+    const minutes = window ? Math.max(1, parseInt(window, 10) || 5) : 5;
+    return this.connectionPoolService.getStatsSnapshot(minutes);
   }
 }

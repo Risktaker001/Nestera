@@ -2,6 +2,7 @@
 
 import React from "react";
 import { CheckCircle2, ChevronRight } from "lucide-react";
+import { Button } from "../ui/Button";
 
 export interface PassedProposal {
   id: string;
@@ -74,9 +75,7 @@ export default function PassedProposalCard({ proposal }: { proposal: PassedPropo
         </div>
 
         <div className="mt-5 flex items-center justify-between">
-          <button className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-[#061a1a] font-bold transition-all active:scale-95">
-            View details
-          </button>
+          <Button variant="primary" size="sm">View details</Button>
           <a
             href="#"
             className="inline-flex items-center gap-1 text-[#60f0ec] font-semibold hover:text-[#9ef0f0] transition-colors group"

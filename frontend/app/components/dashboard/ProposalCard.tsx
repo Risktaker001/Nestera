@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "../ui/Button";
+
 type ProposalCardProps = {
   id: string;
   title: string;
@@ -114,23 +116,17 @@ export default function ProposalCard({
         </div>
 
         <div>
-          <button
-            onClick={onVote}
-            className="px-5 py-3 rounded-xl bg-linear-to-r from-sky-400 to-cyan-300 text-[#042024] font-semibold shadow-md hover:brightness-110"
-          >
+          <Button variant="primary" size="md" onClick={onVote}>
             {ctaLabel}
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Mobile-only full-width Vote button placed as the last row */}
       <div className="w-full mt-4 md:hidden">
-        <button
-          onClick={onVote}
-          className="w-full px-5 py-3 rounded-xl bg-linear-to-r from-sky-400 to-cyan-300 text-[#042024] font-semibold shadow-md hover:brightness-110"
-        >
+        <Button variant="primary" size="md" fullWidth onClick={onVote}>
           {ctaLabel}
-        </button>
+        </Button>
       </div>
     </div>
   );

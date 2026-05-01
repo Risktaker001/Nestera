@@ -10,6 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import CircularProgress from "./CircularProgress";
+import { Button } from "../ui/Button";
 
 interface Milestone {
   label: string;
@@ -219,20 +220,12 @@ const GoalOverviewCard: React.FC<GoalOverviewCardProps> = ({
 
       {/* ── Action buttons ── */}
       <div className="mt-8 flex flex-wrap gap-3">
-        <button
-          onClick={onEditGoal}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/[0.08] text-white font-semibold text-sm transition-all active:scale-95 cursor-pointer"
-        >
-          <Edit3 size={16} />
+        <Button variant="secondary" size="md" leftIcon={<Edit3 size={16} />} onClick={onEditGoal}>
           Edit Goal
-        </button>
-        <button
-          onClick={onAddFunds}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-[#061a1a] font-bold text-sm transition-all shadow-[0_8px_20px_rgba(0,212,192,0.2)] hover:shadow-[0_12px_28px_rgba(0,212,192,0.35)] active:scale-95 cursor-pointer"
-        >
-          <PlusCircle size={16} />
+        </Button>
+        <Button variant="primary" size="md" leftIcon={<PlusCircle size={16} />} onClick={onAddFunds}>
           Add Funds
-        </button>
+        </Button>
       </div>
     </div>
   );

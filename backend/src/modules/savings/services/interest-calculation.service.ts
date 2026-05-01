@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import {
   UserSubscription,
@@ -10,6 +11,16 @@ import {
 } from '../entities/user-subscription.entity';
 import { InterestHistory } from '../entities/interest-history.entity';
 import { SavingsProductType } from '../entities/savings-product.entity';
+
+/** Supported compounding frequencies (periods per year) */
+export enum CompoundingFrequency {
+  DAILY = 365,
+  WEEKLY = 52,
+  MONTHLY = 12,
+  QUARTERLY = 4,
+  ANNUALLY = 1,
+  CONTINUOUS = 0, // uses e^(rt) formula
+}
 
 export interface InterestCreditedEvent {
   userId: string;
@@ -31,6 +42,7 @@ export class InterestCalculationService {
     private readonly interestHistoryRepo: Repository<InterestHistory>,
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -121,9 +133,30 @@ export class InterestCalculationService {
     const periodDays = this.getPeriodDays(calculationDate);
     const daysInYear = this.getDaysInYear(calculationDate.getUTCFullYear());
 
-    // Daily simple interest: I = P * (r/365) * days
-    const dailyInterest =
-      principal * (annualRate / 100 / daysInYear) * periodDays;
+    // Compound interest accrued over one day, compounded per-second:
+    // A = P * (1 + r/n)^n  where n = seconds in a day
+    // Daily accrual = A - P
+    const secondsInDay = 86400;
+    const frequencyRaw = this.configService.get<number>(
+      'savings.compoundingFrequency',
+      CompoundingFrequency.DAILY,
+    );
+    const frequency: CompoundingFrequency =
+      frequencyRaw === 0 ? CompoundingFrequency.CONTINUOUS : frequencyRaw;
+
+    let dailyInterest: number;
+    const rateDecimal = annualRate / 100;
+    const timeInYears = (periodDays * secondsInDay) / (daysInYear * secondsInDay);
+
+    if (frequency === CompoundingFrequency.CONTINUOUS) {
+      // Continuous compounding: A = P * e^(r*t)
+      dailyInterest = principal * (Math.exp(rateDecimal * timeInYears) - 1);
+    } else {
+      // Discrete compounding: A = P * (1 + r/n)^(n*t)
+      const compoundedAmount =
+        principal * Math.pow(1 + rateDecimal / frequency, frequency * timeInYears);
+      dailyInterest = compoundedAmount - principal;
+    }
 
     if (dailyInterest <= 0) {
       return false;

@@ -7,6 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
   Index,
+  VersionColumn,
 } from 'typeorm';
 import { SavingsProduct } from './savings-product.entity';
 
@@ -48,6 +49,9 @@ export class UserSubscription {
 
   @Column('decimal', { precision: 20, scale: 7, default: 0 })
   totalInterestEarned: string;
+
+  @VersionColumn()
+  version: number;
 
   @CreateDateColumn()
   createdAt: Date;

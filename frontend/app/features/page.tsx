@@ -10,9 +10,16 @@ import GoalToolsSection from './components/GoalToolsSection';
 import FeaturesCta from './components/FeaturesCta';
 
 export const metadata: Metadata = {
-  title: 'Features — Nestera',
-  description:
-    'Explore the full suite of Nestera features: decentralized savings, smart-contract security, yield optimization, multi-asset support, and goal-based tools — all on Stellar.',
+  title: "Platform Features",
+  description: "Discover the powerful features of Nestera, including automated saving pools, transparent yield generation, and secure smart contracts.",
+  alternates: {
+    canonical: "/features",
+  },
+  openGraph: {
+    title: "Platform Features - Nestera",
+    description: "Discover the powerful features of Nestera, including automated saving pools, transparent yield generation, and secure smart contracts.",
+    images: ["/api/og?page=features"],
+  },
 };
 
 export default function FeaturesPage() {

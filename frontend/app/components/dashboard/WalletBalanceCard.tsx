@@ -3,6 +3,7 @@
 import React from "react";
 import { useWallet } from "../../context/WalletContext";
 import { Loader2, Wallet, ArrowUpRight } from "lucide-react";
+import { Button } from "../ui/Button";
 
 const WalletBalanceCard: React.FC = () => {
   const {
@@ -52,9 +53,9 @@ const WalletBalanceCard: React.FC = () => {
           </div>
           <h3 className="text-white font-bold text-lg m-0">Wallet Assets</h3>
         </div>
-        <button className="text-[#08c1c1] text-xs font-semibold hover:underline flex items-center gap-1 transition-all">
-          Manage Assets <ArrowUpRight size={14} />
-        </button>
+        <Button variant="ghost" size="sm" rightIcon={<ArrowUpRight size={14} />}>
+          Manage Assets
+        </Button>
       </div>
 
       {isBalancesLoading ? (

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ShieldCheck, Heart, Zap, Globe } from 'lucide-react';
+import { env } from '../../config/env';
 
 const guidelines = [
   {
@@ -69,7 +70,7 @@ const CommunityGuidelines: React.FC = () => {
             We are always looking for developers, designers, and community managers to help us grow.
           </p>
           <a
-            href="https://github.com/nestera"
+            href={env.githubUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-3 px-8 py-4 bg-white text-[#061a1a] font-bold rounded-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_20px_rgba(255,255,255,0.1)]"
