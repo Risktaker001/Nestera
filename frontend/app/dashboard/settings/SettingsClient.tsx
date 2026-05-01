@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Monitor, Moon, Settings, Sun } from "lucide-react";
 import { type Theme, useTheme } from "../../context/ThemeContext";
+import DataExportSection from "../../components/dashboard/DataExportSection";
 import { SettingsSkeleton } from "../../components/ui/PageSkeletons";
 
 type Prefs = {
@@ -197,6 +198,9 @@ export default function SettingsClient() {
             </div>
           </div>
         </section>
+      </div>
+
+      <DataExportSection />
       )}
     </div>
   );

@@ -15,8 +15,10 @@ import {
   Home,
   Airplay,
   ShoppingBag,
+  Download,
 } from "lucide-react";
 import GoalCard, { GoalStatus } from "./components/GoalCard";
+import ExportModal from "../components/dashboard/ExportModal";
 import { SavingsPoolsSkeleton } from "../components/ui/PageSkeletons";
 
 // export const metadata = { title: "Goal-Based Savings - Nestera" };
@@ -27,6 +29,7 @@ export default function GoalBasedSavingsPage() {
   const [statusFilter, setStatusFilter] = React.useState("All");
   const [sortBy, setSortBy] = React.useState("Progress");
   const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
+  const [exportOpen, setExportOpen] = React.useState(false);
 
   React.useEffect(() => {
     const timer = setTimeout(() => setIsLoading(false), 1500);
@@ -112,8 +115,27 @@ export default function GoalBasedSavingsPage() {
     return filtered;
   }, [goals, searchQuery, sortBy, statusFilter]);
 
+  const exportRows = goals.map((g) => ({
+    title: g.title,
+    status: g.status,
+    target_amount: g.targetAmount,
+    current_saved: g.currentSaved,
+    remaining: g.remainingAmount,
+    progress_pct: g.progressPercent,
+    deadline: g.scheduleLabel,
+    contribution_frequency: g.contributionFrequency,
+    next_contribution: g.nextContributionValue,
+  }));
+
   return (
     <section className="min-h-screen w-full bg-[#0b1f20]">
+      <ExportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        dataType="goals"
+        title="Savings Goals"
+        rows={exportRows}
+      />
       {/* Header Band */}
       <div className="w-full bg-[#0f2a2a]">
         <div className="w-full max-w-7xl mx-auto px-6 md:px-8 pt-10 pb-12">
@@ -128,7 +150,14 @@ export default function GoalBasedSavingsPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <button className="px-5 py-2.5 rounded-xl border border-cyan-400/40 text-cyan-200 hover:text-white hover:border-cyan-300 transition-colors">
+              <button
+                onClick={() => setExportOpen(true)}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-cyan-400/40 text-cyan-200 hover:text-white hover:border-cyan-300 transition-colors"
+              >
+                <Download size={16} />
+                Export
+              </button>
+              <button className="px-5 py-2.5 rounded-xl border border-cyan-400/20 text-cyan-400/70 hover:text-white hover:border-cyan-300 transition-colors">
                 View Templates
               </button>
               <Link

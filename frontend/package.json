@@ -19,6 +19,8 @@
     "@tanstack/query-sync-storage-persister": "^5.100.6",
     "@tanstack/react-query-persist-client": "^5.100.6",
     "clsx": "^2.1.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.575.0",
     "next": "^16.2.1",
     "react": "19.2.3",
