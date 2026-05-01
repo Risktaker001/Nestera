@@ -36,10 +36,29 @@ export default function CreateGoalForm() {
     }));
   };
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    setIsSubmitting(false);
+    alert("Goal created successfully!");
+  };
+
   return (
     <div className="w-full bg-[#0A1A1A] py-12 md:py-16">
       <div className="w-full max-w-2xl mx-auto px-6 md:px-8">
         <div className="rounded-2xl border border-white/10 bg-[#0D2626] shadow-2xl overflow-hidden relative">
+          {isSubmitting && (
+            <div className="absolute inset-0 z-10 bg-[#0A1A1A]/40 backdrop-blur-[2px] flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="h-10 w-10 border-4 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+                <span className="text-cyan-400 font-medium">Creating your goal...</span>
+              </div>
+            </div>
+          )}
           <div className="px-6 pt-5 flex items-center justify-between">
             <h2 className="text-2xl font-bold text-white">Create New Goal</h2>
             <button
@@ -50,7 +69,7 @@ export default function CreateGoalForm() {
               <X size={24} />
             </button>
           </div>
-          <form className="p-6 space-y-5">
+          <form className="p-6 space-y-5" onSubmit={handleSubmit}>
             {/* Goal Name */}
             <div>
               <label className="block text-[#8C9BAB] font-semibold mb-2 text-sm">
@@ -63,6 +82,7 @@ export default function CreateGoalForm() {
                 onChange={handleChange}
                 placeholder="e.g., Emergency Fund"
                 className="w-full px-4 py-2.5 rounded-lg bg-[#0F2D2D] border border-white/10 text-[#8C9BAB] placeholder-[#6a8a93] focus:border-[#00D9C0] focus:outline-none transition-colors"
+                disabled={isSubmitting}
               />
             </div>
 
@@ -77,6 +97,7 @@ export default function CreateGoalForm() {
                   value={formData.category}
                   onChange={handleChange}
                   className="w-full px-4 py-2.5 rounded-lg bg-[#0F2D2D] border border-white/10 text-[#8C9BAB] focus:border-[#00D9C0] focus:outline-none appearance-none transition-colors"
+                  disabled={isSubmitting}
                 >
                   <option value="">Select category</option>
                   <option value="emergency">Emergency Fund</option>
@@ -109,6 +130,7 @@ export default function CreateGoalForm() {
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2.5 rounded-lg bg-[#0F2D2D] border border-white/10 text-[#8C9BAB] placeholder-[#6a8a93] focus:border-[#00D9C0] focus:outline-none transition-colors"
+                  disabled={isSubmitting}
                 />
               </div>
               <div>
@@ -124,6 +146,7 @@ export default function CreateGoalForm() {
                   min="0"
                   step="0.01"
                   className="w-full px-4 py-2.5 rounded-lg bg-[#0F2D2D] border border-white/10 text-[#8C9BAB] placeholder-[#6a8a93] focus:border-[#00D9C0] focus:outline-none transition-colors"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -141,6 +164,7 @@ export default function CreateGoalForm() {
                   value={formData.targetDate}
                   onChange={handleChange}
                   className="w-full px-4 py-2.5 rounded-lg bg-[#0F2D2D] border border-white/10 text-[#8C9BAB] focus:border-[#00D9C0] focus:outline-none transition-colors"
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -158,6 +182,7 @@ export default function CreateGoalForm() {
                     value={formData.frequency}
                     onChange={handleChange}
                     className="w-full px-4 py-2.5 rounded-lg bg-[#0F2D2D] border border-white/10 text-[#A1ADAD] focus:border-[#00D9C0] focus:outline-none appearance-none transition-colors"
+                    disabled={isSubmitting}
                   >
                     <option value="monthly">Monthly</option>
                     <option value="yearly">Yearly</option>
@@ -176,6 +201,7 @@ export default function CreateGoalForm() {
                 <button
                   type="button"
                   onClick={() => handleToggle("autoSave")}
+                  disabled={isSubmitting}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     formData.autoSave ? "bg-[#00D9C0]" : "bg-[#1a3f3a]"
                   }`}
@@ -200,6 +226,7 @@ export default function CreateGoalForm() {
                 <button
                   type="button"
                   onClick={() => handleToggle("routeToYield")}
+                  disabled={isSubmitting}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     formData.routeToYield ? "bg-[#00D9C0]" : "bg-[#1a3f3a]"
                   }`}
@@ -227,6 +254,7 @@ export default function CreateGoalForm() {
                 placeholder="Add a personal note or description..."
                 rows={3}
                 className="w-full px-4 py-2.5 rounded-lg bg-[#0F2D2D] border border-white/10 text-[#8C9BAB] placeholder-[#6a8a93] focus:border-[#00D9C0] focus:outline-none transition-colors resize-none"
+                disabled={isSubmitting}
               />
             </div>
 
@@ -234,15 +262,17 @@ export default function CreateGoalForm() {
             <div className="flex gap-3 pt-5">
               <button
                 type="button"
-                className="flex-1 px-4 py-2.5 border border-white/10 rounded-lg text-[#8C9BAB] font-semibold hover:bg-white/10 transition-colors"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2.5 border border-white/10 rounded-lg text-[#8C9BAB] font-semibold hover:bg-white/10 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 px-4 py-2.5 bg-[#00D9C0] hover:bg-[#00b3a0] text-white font-semibold rounded-lg transition-all active:scale-95"
+                disabled={isSubmitting}
+                className="flex-1 px-4 py-2.5 bg-[#00D9C0] hover:bg-[#00b3a0] text-white font-semibold rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Goal
+                {isSubmitting ? "Creating..." : "Create Goal"}
               </button>
             </div>
           </form>

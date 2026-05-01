@@ -18,6 +18,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiQuery,
   ApiHeader,
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -52,6 +53,31 @@ export class AuthController {
   @Post('register')
   @AuthRateLimit({ limit: 3, ttl: 3600000 }) // 3 per hour
   @Throttle({ auth: { limit: 5, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({
+    summary: 'Register a new email/password account',
+    description: 'Creates a new user account with email and password. Rate limited to 5 attempts per 15 minutes.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'User registered successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIs...' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
+            email: { type: 'string', example: 'alice@example.com' },
+            name: { type: 'string', nullable: true },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid registration data or email already exists' })
+  @ApiResponse({ status: 429, description: 'Too many registration attempts - please try again later' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiOperation({ summary: 'Register a new email/password account' })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   @ApiResponse({ status: 409, description: 'User already exists' })
@@ -72,6 +98,35 @@ export class AuthController {
   @AuthRateLimit({ limit: 5, ttl: 900000 }) // 5 per 15 minutes
   @Throttle({ auth: { limit: 5, ttl: 15 * 60 * 1000 } })
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Login and receive a JWT',
+    description: 'Authenticate with email and password to receive a JWT token for API access. Rate limited to 5 attempts per 15 minutes.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Login successful',
+    schema: {
+      type: 'object',
+      properties: {
+        token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIs...' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            email: { type: 'string' },
+            name: { type: 'string', nullable: true },
+            role: { type: 'string', enum: ['USER', 'ADMIN'] },
+            kycStatus: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Too many login attempts - please try again later' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
   @ApiOperation({ summary: 'Login and receive a JWT' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
@@ -91,6 +146,30 @@ export class AuthController {
   @Get('nonce')
   @AuthRateLimit({ limit: 10, ttl: 900000 }) // 10 per 15 minutes
   @Throttle({ auth: { limit: 5, ttl: 15 * 60 * 1000 } })
+  @ApiOperation({
+    summary: 'Generate a one-time nonce for wallet signature',
+    description: 'Generates a random nonce that must be signed by the user\'s Stellar wallet to verify ownership. Rate limited to 5 requests per 15 minutes.',
+  })
+  @ApiQuery({
+    name: 'publicKey',
+    description: 'Stellar public key (G... format)',
+    required: true,
+    example: 'GABCDEF234567ABCDEFGHIJKLMNOPQRSTUVWXYZ234567ABCDEFGHJKLMN',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Nonce generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        nonce: { type: 'string', example: 'abc123def456789...' },
+        expiresAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid public key format' })
+  @ApiResponse({ status: 429, description: 'Too many requests - please try again later' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   @ApiOperation({ summary: 'Generate a one-time nonce for wallet signature' })
   @ApiResponse({ status: 200, description: 'Nonce generated successfully' })
   @ApiResponse({ status: 400, description: 'Invalid public key format' })
@@ -111,6 +190,35 @@ export class AuthController {
   @AuthRateLimit({ limit: 5, ttl: 900000 }) // 5 per 15 minutes
   @Throttle({ auth: { limit: 5, ttl: 15 * 60 * 1000 } })
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Verify wallet signature and receive a JWT',
+    description: 'Verifies the Ed25519 signature of the nonce and issues a JWT token. Rate limited to 5 attempts per 15 minutes.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Signature verified, JWT issued',
+    schema: {
+      type: 'object',
+      properties: {
+        token: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIs...' },
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            email: { type: 'string' },
+            publicKey: { type: 'string', example: 'GABCDEF...' },
+            role: { type: 'string' },
+            kycStatus: { type: 'string' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid signature or nonce' })
+  @ApiResponse({ status: 429, description: 'Too many verification attempts' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
+  verifySignature(@Body() dto: VerifySignatureDto) {
+    return this.authService.verifySignature(dto);
   @ApiOperation({ summary: 'Verify wallet signature and receive a JWT' })
   @ApiResponse({ status: 200, description: 'Signature verified successfully' })
   @ApiResponse({ status: 401, description: 'Invalid signature or nonce' })
@@ -150,7 +258,7 @@ export class AuthController {
       '3. POST { publicKey, nonce, signature } with your Bearer token.',
   })
   @ApiResponse({ status: 200, description: 'Wallet linked successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid public key format' })
+  @ApiResponse({ status: 400, description: 'Invalid public key format or signature' })
   @ApiResponse({
     status: 401,
     description: 'Invalid or missing JWT / bad signature',
@@ -159,6 +267,7 @@ export class AuthController {
     status: 409,
     description: 'Wallet already linked to an account',
   })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   linkWallet(
     @Request() req: { user: { id: string } },
     @Body() dto: LinkWalletDto,

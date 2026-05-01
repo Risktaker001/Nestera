@@ -17,6 +17,8 @@ import {
   Clock,
 } from 'lucide-react';
 
+import { env } from '../../config/env';
+
 /* ─── mock data ─────────────────────────────────────── */
 const MOCK_USER = {
   displayName: 'Alex DeFi',
@@ -285,7 +287,7 @@ export default function ProfilePage() {
               <span className="font-mono text-sm font-bold text-cyan-300 tracking-wider">
                 {MOCK_USER.referralCode}
               </span>
-              <CopyButton text={`https://nestera.io?ref=${MOCK_USER.referralCode}`} />
+              <CopyButton text={`${env.baseUrl}?ref=${MOCK_USER.referralCode}`} />
             </div>
           </div>
         </div>

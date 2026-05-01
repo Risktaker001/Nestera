@@ -48,10 +48,11 @@ import { PredictiveEvaluatorService } from './services/predictive-evaluator.serv
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Optional } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Repository, DataSource } from 'typeorm';
 import { SavingsProductVersionAudit } from './entities/savings-product-version-audit.entity';
 import { WaitlistService } from './waitlist.service';
 import { MilestoneService } from './services/milestone.service';
+import { MilestoneQueueService } from './services/milestone-queue.service';
 
 export type SavingsGoalProgress = GoalProgressDto;
 
@@ -121,9 +122,11 @@ export class SavingsService {
     private readonly withdrawalRepository: Repository<WithdrawalRequest>,
     @InjectRepository(Transaction)
     private readonly transactionRepository: Repository<Transaction>,
+    private readonly dataSource: DataSource,
     private readonly blockchainSavingsService: BlockchainSavingsService,
     private readonly predictiveEvaluatorService: PredictiveEvaluatorService,
     private readonly milestoneService: MilestoneService,
+    private readonly milestoneQueueService: MilestoneQueueService,
     private readonly waitlistService: WaitlistService,
     private readonly configService: ConfigService,
     @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
@@ -493,80 +496,110 @@ export class SavingsService {
       );
     }
 
-    if (!overrideLimits) {
-      const activeSubscriptionsForUser =
-        await this.subscriptionRepository.count({
-          where: {
-            userId,
-            productId: product.id,
-            status: SubscriptionStatus.ACTIVE,
-          },
-        });
+    return this.dataSource.transaction(async (manager) => {
+      // Pessimistic write lock on the product row to prevent concurrent capacity overflows
+      const lockedProduct = await manager
+        .getRepository(SavingsProduct)
+        .createQueryBuilder('product')
+        .setLock('pessimistic_write')
+        .where('product.id = :id', { id: productId })
+        .getOne();
 
-      if (
-        product.maxSubscriptionsPerUser != null &&
-        activeSubscriptionsForUser >= product.maxSubscriptionsPerUser
-      ) {
-        throw new ConflictException(
-          `Subscription limit reached. You can only hold ${product.maxSubscriptionsPerUser} active subscriptions for this product.`,
-        );
+      if (!lockedProduct) {
+        throw new NotFoundException(`Savings product ${productId} not found`);
       }
 
-      if (product.capacity != null) {
-        const activeSubscriptionsForProduct =
-          await this.subscriptionRepository.count({
+      if (!overrideLimits) {
+        const activeSubscriptionsForUser = await manager
+          .getRepository(UserSubscription)
+          .count({
             where: {
-              productId: product.id,
+              userId,
+              productId: lockedProduct.id,
               status: SubscriptionStatus.ACTIVE,
             },
           });
 
-        if (activeSubscriptionsForProduct >= product.capacity) {
-          const { position } = await this.waitlistService.joinWaitlist(
-            userId,
-            product.id,
-          );
+        if (
+          lockedProduct.maxSubscriptionsPerUser != null &&
+          activeSubscriptionsForUser >= lockedProduct.maxSubscriptionsPerUser
+        ) {
           throw new ConflictException(
-            `This savings product is full. You have been added to the waitlist at position ${position}.`,
+            `Subscription limit reached. You can only hold ${lockedProduct.maxSubscriptionsPerUser} active subscriptions for this product.`,
           );
         }
-      }
-      const capacity = await this.getProductCapacitySnapshot(productId);
-      if (
-        capacity.maxCapacity != null &&
-        (capacity.isFull || amount > capacity.availableCapacity)
-      ) {
-        const { position } = await this.waitlistService.joinWaitlist(
-          userId,
-          productId,
-        );
-        throw new ConflictException(
-          `This savings product is at capacity. You have been added to the waitlist at position ${position}.`,
-        );
-      }
-    }
 
-    const subscription = this.subscriptionRepository.create({
-      userId,
-      productId: product.id,
-      amount,
-      status: SubscriptionStatus.ACTIVE,
-      startDate: new Date(),
-      endDate: product.tenureMonths
-        ? (() => {
-            const d = new Date();
-            d.setMonth(d.getMonth() + product.tenureMonths);
-            return d;
-          })()
-        : null,
+        if (lockedProduct.capacity != null) {
+          const activeSubscriptionsForProduct = await manager
+            .getRepository(UserSubscription)
+            .count({
+              where: {
+                productId: lockedProduct.id,
+                status: SubscriptionStatus.ACTIVE,
+              },
+            });
+
+          if (activeSubscriptionsForProduct >= lockedProduct.capacity) {
+            const { position } = await this.waitlistService.joinWaitlist(
+              userId,
+              lockedProduct.id,
+            );
+            throw new ConflictException(
+              `This savings product is full. You have been added to the waitlist at position ${position}.`,
+            );
+          }
+        }
+
+        if (lockedProduct.maxCapacity != null) {
+          const { total } = await manager
+            .getRepository(UserSubscription)
+            .createQueryBuilder('subscription')
+            .select('COALESCE(SUM(subscription.amount), 0)', 'total')
+            .where('subscription.productId = :productId', { productId })
+            .andWhere('subscription.status = :status', {
+              status: SubscriptionStatus.ACTIVE,
+            })
+            .getRawOne<{ total: string }>();
+
+          const utilized = Number(total ?? 0);
+          const available = Number(lockedProduct.maxCapacity) - utilized;
+
+          if (available <= 0 || amount > available) {
+            const { position } = await this.waitlistService.joinWaitlist(
+              userId,
+              productId,
+            );
+            throw new ConflictException(
+              `This savings product is at capacity. You have been added to the waitlist at position ${position}.`,
+            );
+          }
+        }
+      }
+
+      const subscription = manager.getRepository(UserSubscription).create({
+        userId,
+        productId: lockedProduct.id,
+        amount,
+        status: SubscriptionStatus.ACTIVE,
+        startDate: new Date(),
+        endDate: lockedProduct.tenureMonths
+          ? (() => {
+              const d = new Date();
+              d.setMonth(d.getMonth() + lockedProduct.tenureMonths);
+              return d;
+            })()
+          : null,
+      });
+
+      const savedSubscription = await manager
+        .getRepository(UserSubscription)
+        .save(subscription);
+
+      // Record waitlist conversion if the user was on the waitlist
+      await this.waitlistService.recordConversion(userId, lockedProduct.id);
+
+      return savedSubscription;
     });
-    const savedSubscription =
-      await this.subscriptionRepository.save(subscription);
-
-    // Record waitlist conversion if the user was on the waitlist
-    await this.waitlistService.recordConversion(userId, product.id);
-
-    return savedSubscription;
   }
 
   async findMySubscriptions(
@@ -996,19 +1029,13 @@ export class SavingsService {
       this.mapGoalWithProgress(goal, liveVaultBalanceStroops, averageYieldRate),
     );
 
-    // Detect and persist newly achieved milestones (fire-and-forget, non-blocking)
+    // Enqueue milestone detection asynchronously — processed in batches with retry logic
     for (const progress of progressList) {
-      this.milestoneService
-        .detectAndAchieveMilestones(
-          progress.id,
-          progress.userId,
-          progress.percentageComplete,
-        )
-        .catch((err) =>
-          this.logger.warn(
-            `Milestone detection failed for goal ${progress.id}: ${(err as Error).message}`,
-          ),
-        );
+      this.milestoneQueueService.enqueue(
+        progress.id,
+        progress.userId,
+        progress.percentageComplete,
+      );
     }
 
     return progressList;

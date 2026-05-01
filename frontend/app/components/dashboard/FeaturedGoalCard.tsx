@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plane, Calendar, ChevronRight } from 'lucide-react';
 import CircularProgress from './CircularProgress';
+import { Button } from '../ui/Button';
 
 interface FeaturedGoalCardProps {
   title: string;
@@ -82,13 +83,12 @@ const FeaturedGoalCard: React.FC<FeaturedGoalCardProps> = ({
         </div>
 
         <div className="flex items-center gap-4 mt-2">
-          <button className="flex-1 md:flex-none px-6 py-3.5 bg-cyan-500 hover:bg-cyan-400 text-[#061a1a] font-bold rounded-2xl transition-all duration-300 shadow-[0_10px_20px_rgba(0,212,192,0.2)] hover:shadow-[0_15px_30px_rgba(0,212,192,0.4)] active:scale-95 cursor-pointer">
+          <Button variant="primary" size="lg" className="flex-1 md:flex-none">
             Contribute Now
-          </button>
-          <button className="flex items-center gap-1 text-cyan-400 font-bold hover:text-cyan-300 transition-colors cursor-pointer group px-2">
+          </Button>
+          <Button variant="ghost" size="lg" rightIcon={<ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />}>
             View Details
-            <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

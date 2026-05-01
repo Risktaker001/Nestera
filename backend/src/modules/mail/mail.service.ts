@@ -1,11 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
+import * as sgMail from '@sendgrid/mail';
 
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
 
-  constructor(private readonly mailerService: MailerService) {}
+  constructor(
+    private readonly mailerService: MailerService,
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY!);
+  ) {}
+
+  async sendMail(to: string, subject: string, html: string) {
+    try {
+      await sgMail.send({
+        to,
+        from: process.env.MAIL_FROM!,
+        subject,
+        html,
+      });
+    } catch (error) {
+      this.logger.error('Email send failed', error);
+      throw error;
+    }
+  }
 
   async sendWelcomeEmail(userEmail: string, name: string): Promise<void> {
     try {

@@ -1,41 +1,19 @@
-"use client";
+import { Metadata } from "next";
+import GoalManagementHeader from "./GoalsClient";
 
-import React from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
-const GoalManagementHeader: React.FC = () => {
-  return (
-    <header
-      className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-4 sm:px-6 py-4 sm:py-6"
-      style={{
-        background: "linear-gradient(45deg, #0F1F1F 0%, #132626 100%)"
-      }}
-    >
-      {/* Left: Title and Subtitle */}
-      <div className="flex flex-col gap-0.5">
-        <h1
-          className="m-0 text-white font-bold leading-none"
-          style={{ fontSize: 22 }}
-        >
-          Goal Management & Creation
-        </h1>
-        <p className="m-0 text-[#4e8a96]" style={{ fontSize: 13 }}>
-          Manage your goals in detail and create new savings targets with powerful tools
-        </p>
-      </div>
-
-      {/* Right: Back Button */}
-      <Link
-        href="/dashboard"
-        className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[#08c1c1] text-[#6a9fae] hover:text-[#5de0e0] hover:border-[#5de0e0] transition-colors no-underline bg-transparent w-full sm:w-auto"
-        style={{ fontSize: 14 }}
-      >
-        <ArrowLeft size={16} />
-        <span className="font-medium">Back to Overview</span>
-      </Link>
-    </header>
-  );
+export const metadata: Metadata = {
+  title: "Savings Goals",
+  description: "Explore and create personalized savings goals. Set targets, choose frequencies, and watch your savings grow on-chain.",
+  alternates: {
+    canonical: "/goals",
+  },
+  openGraph: {
+    title: "Savings Goals - Nestera",
+    description: "Explore and create personalized savings goals. Set targets, choose frequencies, and watch your savings grow on-chain.",
+    images: ["/api/og?page=savings"],
+  },
 };
 
-export default GoalManagementHeader;
+export default function Page() {
+  return <GoalManagementHeader />;
+}

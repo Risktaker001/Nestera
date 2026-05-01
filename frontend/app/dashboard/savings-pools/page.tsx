@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Landmark,
   Loader2,
@@ -16,6 +17,13 @@ import { useSearchFilter } from "@/app/hooks/useSearchFilter";
 import SearchFilterSystem from "@/app/components/ui/SearchFilterSystem";
 import { toCsv, downloadTextFile } from "@/app/utils/csvExport";
 import { Download } from "lucide-react";
+import { SAVINGS_POOLS } from "@/app/data/savingsPools";
+import {
+  savingsPoolDepositStateQueryKey,
+  savingsPoolsQueryKey,
+  STATIC_QUERY_GC_TIME,
+  STATIC_QUERY_STALE_TIME,
+} from "@/app/lib/query";
 
 export default function GoalBasedSavingsPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -41,48 +49,65 @@ export default function GoalBasedSavingsPage() {
       apy: 4.5,
       tvl: "$12.8M",
       riskLevel: "Medium Risk",
+  const queryClient = useQueryClient();
+
+  const poolsQuery = useQuery({
+    queryKey: savingsPoolsQueryKey,
+    queryFn: async () => SAVINGS_POOLS,
+    staleTime: STATIC_QUERY_STALE_TIME,
+    gcTime: STATIC_QUERY_GC_TIME,
+    initialData: SAVINGS_POOLS,
+  });
+
+  const depositStateQuery = useQuery<string | null>({
+    queryKey: savingsPoolDepositStateQueryKey,
+    queryFn: async () => null,
+    staleTime: STATIC_QUERY_STALE_TIME,
+    gcTime: STATIC_QUERY_GC_TIME,
+    initialData: null,
+    enabled: false,
+  });
+
+  const savingsPools = poolsQuery.data ?? SAVINGS_POOLS;
+  const activeDepositId = depositStateQuery.data;
+
+  const depositMutation = useMutation({
+    mutationFn: async (poolId: string) => {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      return poolId;
     },
-    {
-      id: "aqua-farming",
-      name: "AQUA Farming",
-      strategy: "DeFi",
-      icon: "A",
-      iconBgColor: "bg-gradient-to-br from-cyan-500 to-cyan-600",
-      apy: 18.5,
-      tvl: "$2.1M",
-      riskLevel: "High Risk",
+    onMutate: async (poolId: string) => {
+      await queryClient.cancelQueries({
+        queryKey: savingsPoolDepositStateQueryKey,
+      });
+
+      const previousDepositId =
+        queryClient.getQueryData<string | null>(
+          savingsPoolDepositStateQueryKey,
+        ) ?? null;
+
+      queryClient.setQueryData(savingsPoolDepositStateQueryKey, poolId);
+      toast.info(
+        "Deposit queued",
+        `Optimistically reserving ${poolId} while the action completes.`,
+      );
+
+      return { previousDepositId };
     },
-    {
-      id: "eurc-yield",
-      name: "EURC Yield",
-      strategy: "Euro Stable",
-      icon: "€",
-      iconBgColor: "bg-gradient-to-br from-indigo-500 to-indigo-600",
-      apy: 3.2,
-      tvl: "$8.4M",
-      riskLevel: "Low Risk",
+    onError: (_error, _poolId, context) => {
+      queryClient.setQueryData(
+        savingsPoolDepositStateQueryKey,
+        context?.previousDepositId ?? null,
+      );
+      toast.error("Deposit failed", "The optimistic update was rolled back.");
     },
-    {
-      id: "yusdc-vault",
-      name: "yUSDC Vault",
-      strategy: "Yield Aggregator",
-      icon: "y",
-      iconBgColor: "bg-gradient-to-br from-teal-500 to-teal-600",
-      apy: 8.1,
-      tvl: "$4.2M",
-      riskLevel: "Medium Risk",
+    onSuccess: (poolId) => {
+      toast.success("Deposit ready", `Selected pool: ${poolId}`);
     },
-    {
-      id: "btc-xlm-lp",
-      name: "BTC-XLM LP",
-      strategy: "Liquidity Pool",
-      icon: "₿",
-      iconBgColor: "bg-gradient-to-br from-orange-500 to-orange-600",
-      apy: 12.4,
-      tvl: "$5.6M",
-      riskLevel: "High Risk",
+    onSettled: () => {
+      queryClient.setQueryData(savingsPoolDepositStateQueryKey, null);
     },
-  ];
+  });
 
   const {
     query,
@@ -101,7 +126,7 @@ export default function GoalBasedSavingsPage() {
   });
 
   const handleDeposit = (poolId: string) => {
-    toast.info("Deposit flow opening", `Selected pool: ${poolId}`);
+    depositMutation.mutate(poolId);
   };
 
   function onExportCsv() {
@@ -139,12 +164,12 @@ export default function GoalBasedSavingsPage() {
         {/* View Toggles & Actions */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex bg-[#0e2330] p-1 rounded-xl border border-white/5">
-            <button className="min-h-11 p-2 rounded-lg bg-cyan-500/10 text-cyan-400 shadow-sm">
+            <Button variant="ghost" size="sm" className="bg-cyan-500/10 text-cyan-400" aria-label="Grid view">
               <LayoutGrid size={18} />
-            </button>
-            <button className="min-h-11 p-2 rounded-lg text-[#5e8c96] hover:text-white transition-colors">
+            </Button>
+            <Button variant="ghost" size="sm" aria-label="List view">
               <List size={18} />
-            </button>
+            </Button>
           </div>
           <button
             onClick={onExportCsv}
@@ -154,8 +179,9 @@ export default function GoalBasedSavingsPage() {
             Export CSV
           </button>
           <button className="min-h-11 rounded-xl bg-cyan-500 px-5 py-2.5 font-bold text-[#061a1a] shadow-lg transition-all hover:bg-cyan-400 active:scale-95">
+          <Button variant="primary" size="md">
             Create New Goal
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -206,6 +232,7 @@ export default function GoalBasedSavingsPage() {
               key={pool.id}
               pool={pool}
               onDeposit={handleDeposit}
+              isDepositing={activeDepositId === pool.id}
             />
           ))}
         </div>

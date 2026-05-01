@@ -12,6 +12,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { PortfolioTimelineQueryDto } from './dto/portfolio-timeline-query.dto';
@@ -36,6 +37,13 @@ export class AnalyticsController {
     description:
       'Returns a time-series dataset of user balances for chart visualization.',
   })
+  @ApiQuery({
+    name: 'timeframe',
+    required: false,
+    enum: ['7d', '1m', '3m', '6m', '1y'],
+    description: 'Time range for the portfolio timeline',
+    example: '1m',
+  })
   @ApiResponse({
     status: 200,
     description: 'Chronological array of portfolio value over time',
@@ -50,6 +58,9 @@ export class AnalyticsController {
       },
     },
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'No Stellar public key linked' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async getPortfolioTimeline(
     @CurrentUser() user: { id: string },
     @Query() query: PortfolioTimelineQueryDto,
@@ -75,6 +86,7 @@ export class AnalyticsController {
     status: 404,
     description: 'No Stellar public key linked to account',
   })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async getAllocation(
     @CurrentUser() user: { id: string; publicKey?: string },
   ): Promise<AssetAllocationDto> {
@@ -100,6 +112,7 @@ export class AnalyticsController {
     type: YieldBreakdownDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async getYieldBreakdown(
     @CurrentUser() user: { id: string },
   ): Promise<YieldBreakdownDto> {

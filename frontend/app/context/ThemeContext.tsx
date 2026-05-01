@@ -22,7 +22,7 @@ interface ThemeContextValue {
   toggleTheme: () => void;
 }
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
+export const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function isTheme(value: string | null | undefined): value is Theme {
   return value === "light" || value === "dark" || value === "system";

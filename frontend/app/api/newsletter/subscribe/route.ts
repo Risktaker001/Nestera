@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_API_BASE =
-  process.env.BACKEND_API_URL ?? process.env.NEXT_PUBLIC_BACKEND_API_URL ?? "http://localhost:3001/api/v1";
+import { env } from "../../../config/env";
+
+const BACKEND_API_BASE = env.backendApiUrl;
 
 export async function POST(request: NextRequest) {
   try {

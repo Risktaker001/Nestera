@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Briefcase, TrendingUp, TrendingDown, Download, MoreHorizontal } from "lucide-react";
+import ExportModal from "../../components/dashboard/ExportModal";
 
 const ASSETS = [
   { name: "USDC Flexible", type: "Savings", balance: 2400, value: 2400, apy: 6.5, pnl: 156, pnlPct: 6.9 },
@@ -29,32 +30,32 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 export default function PortfolioPage() {
-  const [exporting, setExporting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const totalValue = ASSETS.reduce((s, a) => s + a.value, 0);
   const totalPnl = ASSETS.reduce((s, a) => s + a.pnl, 0);
   const totalPnlPct = ((totalPnl / (totalValue - totalPnl)) * 100).toFixed(2);
 
-  const handleExport = () => {
-    setExporting(true);
-    const csv = [
-      "Name,Type,Balance,Value (USD),APY (%),P&L (USD),P&L (%)",
-      ...ASSETS.map((a) =>
-        `${a.name},${a.type},${a.balance},${a.value},${a.apy},${a.pnl},${a.pnlPct}`
-      ),
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "nestera-portfolio.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-    setTimeout(() => setExporting(false), 1000);
-  };
+  const exportRows = ASSETS.map((a) => ({
+    name: a.name,
+    type: a.type,
+    balance: a.balance,
+    value_usd: a.value,
+    apy_pct: a.apy,
+    pnl_usd: a.pnl,
+    pnl_pct: a.pnlPct,
+  }));
 
   return (
     <div className="w-full">
+      <ExportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        dataType="portfolio"
+        title="Portfolio"
+        rows={exportRows}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -67,12 +68,11 @@ export default function PortfolioPage() {
           </div>
         </div>
         <button
-          onClick={handleExport}
-          disabled={exporting}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-300 text-sm font-medium hover:bg-cyan-500/20 transition-colors cursor-pointer disabled:opacity-50"
+          onClick={() => setExportOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-300 text-sm font-medium hover:bg-cyan-500/20 transition-colors cursor-pointer"
         >
           <Download size={15} />
-          {exporting ? "Exporting…" : "Export CSV"}
+          Export Data
         </button>
       </div>
 

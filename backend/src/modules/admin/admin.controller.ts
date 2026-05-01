@@ -10,6 +10,7 @@ import {
   Post,
   Req,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody } from '@nestjs/swagger';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -29,6 +30,7 @@ import { ApproveKycDto, RejectKycDto } from '../user/dto/update-user.dto';
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
+@ApiTags('Admin')
 @ApiBearerAuth()
 export class AdminController {
   constructor(
@@ -38,6 +40,40 @@ export class AdminController {
   ) {}
 
   @Patch('users/:id/kyc/approve')
+  @ApiOperation({
+    summary: 'Approve user KYC',
+    description: 'Approves the KYC (Know Your Customer) verification for a specified user. Only administrators can perform this action.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID to approve KYC for',
+    type: String,
+    example: 'user_123456789',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC approval successful',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'KYC approved successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string', example: 'user_123456789' },
+            kycStatus: { type: 'string', example: 'approved' },
+            approvedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request - User ID is required or invalid format' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - No valid JWT token provided' })
+  @ApiResponse({ status: 403, description: 'Forbidden - User does not have admin privileges' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   async approveKyc(@Param('id') userId: string) {
     if (!userId) {
       throw new BadRequestException('User ID is required');
@@ -46,6 +82,55 @@ export class AdminController {
   }
 
   @Patch('users/:id/kyc/reject')
+  @ApiOperation({
+    summary: 'Reject user KYC',
+    description: 'Rejects the KYC verification for a specified user with a provided reason. Only administrators can perform this action.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID to reject KYC for',
+    type: String,
+    example: 'user_123456789',
+  })
+  @ApiBody({
+    description: 'Rejection details including reason',
+    type: RejectKycDto,
+    examples: {
+      example1: {
+        value: { reason: 'Invalid identification document' },
+        summary: 'Standard rejection',
+      },
+      example2: {
+        value: { reason: 'Mismatch between provided information and official records' },
+        summary: 'Detailed rejection',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC rejection successful',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'KYC rejected successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string', example: 'user_123456789' },
+            kycStatus: { type: 'string', example: 'rejected' },
+            reason: { type: 'string', example: 'Invalid identification document' },
+            rejectedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request - Missing user ID or rejection reason' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - No valid JWT token provided' })
+  @ApiResponse({ status: 403, description: 'Forbidden - User does not have admin privileges' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   async rejectKyc(@Param('id') userId: string, @Body() dto: RejectKycDto) {
     if (!userId) {
       throw new BadRequestException('User ID is required');
@@ -57,6 +142,72 @@ export class AdminController {
   }
 
   @Patch('users/:id/kyc')
+  @ApiOperation({
+    summary: 'Update KYC status',
+    description: 'Unified endpoint to update user KYC status (approve or reject). Only administrators can perform this action.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User ID to update KYC status for',
+    type: String,
+    example: 'user_123456789',
+  })
+  @ApiBody({
+    description: 'Action and optional reason',
+    schema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['approve', 'reject'],
+          example: 'approve',
+          description: 'Action to perform: approve or reject',
+        },
+        reason: {
+          type: 'string',
+          example: 'Document verification failed',
+          description: 'Required for reject action',
+        },
+      },
+      required: ['action'],
+    },
+    examples: {
+      approve: {
+        value: { action: 'approve' },
+        summary: 'Approve KYC',
+      },
+      reject: {
+        value: { action: 'reject', reason: 'Invalid document provided' },
+        summary: 'Reject KYC with reason',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC status updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'KYC status updated successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            userId: { type: 'string', example: 'user_123456789' },
+            kycStatus: { type: 'string', example: 'approved' },
+            action: { type: 'string', example: 'approve' },
+            reason: { type: 'string', nullable: true },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid request - Missing user ID, invalid action, or missing rejection reason' })
+  @ApiResponse({ status: 401, description: 'Unauthorized - No valid JWT token provided' })
+  @ApiResponse({ status: 403, description: 'Forbidden - User does not have admin privileges' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   async updateKycStatus(
     @Param('id') userId: string,
     @Body() body: { action: 'approve' | 'reject'; reason?: string },

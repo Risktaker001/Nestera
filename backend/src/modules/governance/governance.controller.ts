@@ -32,6 +32,18 @@ export class GovernanceController {
     description: 'Delegation lookup result',
     type: DelegationResponseDto,
   })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - No valid JWT token provided',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - User does not have required permissions',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests - rate limit exceeded',
+  })
   getDelegation(
     @CurrentUser() user: { id: string },
   ): Promise<DelegationResponseDto> {
@@ -48,6 +60,18 @@ export class GovernanceController {
     status: 200,
     description: 'Voting power lookup result',
     type: VotingPowerResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - No valid JWT token provided',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - User does not have required permissions',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests - rate limit exceeded',
   })
   getVotingPower(
     @CurrentUser() user: { id: string },

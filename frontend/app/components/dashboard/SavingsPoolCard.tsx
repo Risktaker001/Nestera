@@ -18,11 +18,13 @@ export interface SavingsPool {
 interface SavingsPoolCardProps {
   pool: SavingsPool;
   onDeposit?: (poolId: string) => void;
+  isDepositing?: boolean;
 }
 
 const SavingsPoolCard: React.FC<SavingsPoolCardProps> = ({
   pool,
   onDeposit,
+  isDepositing = false,
 }) => {
   const getRiskColor = (risk: RiskLevel) => {
     switch (risk) {
@@ -107,10 +109,12 @@ const SavingsPoolCard: React.FC<SavingsPoolCardProps> = ({
 
       {/* Deposit Button */}
       <button
+        type="button"
         onClick={() => onDeposit?.(pool.id)}
-        className="w-full py-3 bg-transparent border border-cyan-500/30 text-cyan-400 rounded-xl font-semibold hover:bg-cyan-500/10 hover:border-cyan-500/50 transition-all duration-200 active:scale-[0.98] group-hover:border-cyan-500/50"
+        disabled={isDepositing}
+        className="w-full py-3 bg-transparent border border-cyan-500/30 text-cyan-400 rounded-xl font-semibold hover:bg-cyan-500/10 hover:border-cyan-500/50 transition-all duration-200 active:scale-[0.98] group-hover:border-cyan-500/50 disabled:cursor-wait disabled:opacity-70"
       >
-        Deposit
+        {isDepositing ? "Preparing..." : "Deposit"}
       </button>
     </div>
   );

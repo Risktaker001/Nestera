@@ -10,11 +10,37 @@ import { toCsv, downloadTextFile } from "../../utils/csvExport";
 
 export default function TransactionHistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
+import ExportModal from "../../components/dashboard/ExportModal";
+
+import { TransactionsSkeleton } from "../../components/ui/PageSkeletons";
+
+type TransactionRowData = {
+  date: string;
+  time: string;
+  transactionId: string;
+  type: TransactionType;
+  assetDetails: string;
+  amountDisplay: string;
+  isPositive: boolean | null;
+  status: TransactionStatus;
+  hash: string;
+};
+
+
+export default function TransactionHistoryPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => setIsLoading(false), 750);
-    return () => window.clearTimeout(timeoutId);
+    const loadTimer = window.setTimeout(() => setIsLoading(false), 750);
+    const timeoutTimer = window.setTimeout(() => setShowTimeoutMessage(true), 5000);
+    return () => {
+      window.clearTimeout(loadTimer);
+      window.clearTimeout(timeoutTimer);
+    };
   }, []);
 
   const transactions: TransactionRowData[] = [
@@ -90,9 +116,29 @@ export default function TransactionHistoryPage() {
     );
     toast.success("Transactions exported", "CSV file downloaded successfully.");
   }
+  // exportRows: normalised objects for ExportService
+  const exportRows = transactions.map((t) => ({
+    date: t.date,
+    time: t.time,
+    transactionId: t.transactionId,
+    type: t.type,
+    assetDetails: t.assetDetails,
+    amount: t.amountDisplay,
+    status: t.status,
+    hash: t.hash,
+  }));
 
   return (
     <div className="w-full max-w-7xl mx-auto pb-20">
+      <ExportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        dataType="transactions"
+        title="Transaction History"
+        rows={exportRows}
+        dateKey="date"
+      />
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-linear-to-b from-[#063d3d] to-[#0a6f6f] flex items-center justify-center text-cyan-400 shadow-[0_8px_20px_rgba(6,61,61,0.3)]">
@@ -103,17 +149,17 @@ export default function TransactionHistoryPage() {
               Transaction History
             </h1>
             <p className="text-[#5e8c96] text-sm md:text-base m-0 mt-1">
-              Download your transactions as a CSV file for reporting.
+              Export your transactions as CSV, JSON, or PDF for reporting &amp; tax.
             </p>
           </div>
         </div>
 
         <button
-          onClick={onExportCsv}
+          onClick={() => setExportOpen(true)}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 font-bold text-[#061a1a] shadow-lg transition-all hover:bg-cyan-400 active:scale-95"
         >
           <Download size={18} />
-          Export CSV
+          Export Data
         </button>
       </div>
 
@@ -133,14 +179,13 @@ export default function TransactionHistoryPage() {
 
       <div className="rounded-2xl border border-white/5 bg-[#0e2330]">
         {isLoading ? (
-          <div className="space-y-4 p-4" aria-live="polite" aria-busy="true">
-            <div className="inline-flex items-center gap-2 text-xs text-[#7fa9b0]">
-              <Loader2 size={14} className="animate-spin text-cyan-400" />
-              Loading transaction history...
-            </div>
-            {[1, 2, 3, 4].map((row) => (
-              <div key={row} className="h-[72px] animate-pulse rounded-xl bg-white/5" />
-            ))}
+          <div className="p-4" aria-live="polite" aria-busy="true">
+            <TransactionsSkeleton />
+            {showTimeoutMessage && (
+              <p className="mt-4 text-center text-sm text-[var(--color-text-muted)] animate-pulse">
+                Still loading history... This is taking longer than expected.
+              </p>
+            )}
           </div>
         ) : hasTransactions ? (
           <div className="overflow-x-auto">
@@ -194,10 +239,10 @@ export default function TransactionHistoryPage() {
             ) : (
               <button
                 type="button"
-                onClick={onExportCsv}
+                onClick={() => setExportOpen(true)}
                 className="mt-6 rounded-xl border border-cyan-500/30 px-6 py-2.5 font-semibold text-cyan-300 hover:bg-cyan-500/10"
               >
-                Export sample CSV
+                Export Data
               </button>
             )}
           </div>

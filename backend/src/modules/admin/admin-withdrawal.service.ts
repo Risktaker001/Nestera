@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -22,6 +23,10 @@ import { PageOptionsDto } from '../../common/dto/page-options.dto';
 import { PageDto } from '../../common/dto/page.dto';
 import { paginate } from '../../common/helpers/pagination.helper';
 import { WithdrawalStatsDto } from './dto/withdrawal-stats.dto';
+import {
+  WithdrawalFraudService,
+  FraudRiskLevel,
+} from './withdrawal-fraud.service';
 
 @Injectable()
 export class AdminWithdrawalService {
@@ -36,6 +41,7 @@ export class AdminWithdrawalService {
     private readonly auditLogRepository: Repository<AuditLog>,
     private readonly savingsService: SavingsService,
     private readonly mailService: MailService,
+    private readonly fraudService: WithdrawalFraudService,
   ) {}
 
   async listPending(opts: PageOptionsDto): Promise<PageDto<WithdrawalRequest>> {
@@ -79,6 +85,28 @@ export class AdminWithdrawalService {
       if (withdrawal.status !== WithdrawalStatus.PENDING) {
         throw new BadRequestException(
           'Withdrawal request is not in PENDING status',
+        );
+      }
+
+      // Run fraud detection before approving
+      const fraudCheck = await this.fraudService.checkWithdrawal(
+        withdrawal.userId,
+        Number(withdrawal.amount),
+      );
+
+      if (!fraudCheck.approved) {
+        throw new ForbiddenException(
+          `Withdrawal blocked by fraud detection: ${fraudCheck.flags.join('; ')}`,
+        );
+      }
+
+      if (fraudCheck.requiresManualReview) {
+        // Flag for manual review queue instead of auto-processing
+        withdrawal.status = WithdrawalStatus.PENDING;
+        withdrawal.reason = `[FRAUD_REVIEW:${fraudCheck.riskLevel}] ${fraudCheck.flags.join('; ')}`;
+        await this.withdrawalRepository.save(withdrawal);
+        throw new BadRequestException(
+          `Withdrawal requires manual review due to risk level ${fraudCheck.riskLevel}. Flags: ${fraudCheck.flags.join('; ')}`,
         );
       }
 

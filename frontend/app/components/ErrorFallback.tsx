@@ -3,6 +3,7 @@
 import React, { useEffect } from "react";
 import Link from "next/link";
 import { AlertTriangle, House, RefreshCw } from "lucide-react";
+import { Button } from "./ui/Button";
 
 type ErrorFallbackProps = {
   error: Error & { digest?: string };
@@ -40,14 +41,9 @@ export default function ErrorFallback({
           {error.message}
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <button
-            type="button"
-            onClick={reset}
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent)] px-5 py-3 text-sm font-semibold text-[#061a1a] hover:brightness-105"
-          >
-            <RefreshCw size={16} />
+          <Button variant="primary" size="md" leftIcon={<RefreshCw size={16} />} onClick={reset}>
             Try again
-          </button>
+          </Button>
           <Link
             href={homeHref}
             className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-3 text-sm font-semibold text-[var(--color-text)] no-underline hover:border-[var(--color-border-strong)]"

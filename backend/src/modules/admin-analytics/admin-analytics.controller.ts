@@ -32,8 +32,16 @@ export class AdminAnalyticsController {
     type: AnalyticsOverviewDto,
   })
   @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - No valid JWT token provided',
+  })
+  @ApiResponse({
     status: 403,
     description: 'Forbidden - Admin access required',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests - rate limit exceeded',
   })
   async getOverview(): Promise<AnalyticsOverviewDto> {
     return await this.analyticsService.getOverview();
