@@ -23,6 +23,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useWalletBalances, Balance } from "../hooks/useWalletBalances";
 import { Horizon } from "@stellar/stellar-sdk";
+import { trackEvent, AnalyticsEvents } from "../../lib/analytics";
 import {
   COINGECKO_PRICE_GC_TIME,
   COINGECKO_PRICE_STALE_TIME,
@@ -519,6 +520,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      trackEvent(AnalyticsEvents.WALLET_CONNECT_ATTEMPT);
+      const accessResult = await requestAccess();
+      if (accessResult?.error) {
+        trackEvent(AnalyticsEvents.WALLET_CONNECT_FAILURE, { error: accessResult.error });
       // Set connection timeout
       const timeoutPromise = new Promise<never>((_, reject) => {
         connectionTimeoutRef.current = setTimeout(() => {
@@ -654,7 +659,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         isWalletLocked: false,
         hasConnectionIssue: false,
       }));
+      trackEvent(AnalyticsEvents.WALLET_CONNECT_SUCCESS, { address: addrResult?.address });
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to connect wallet";
+      trackEvent(AnalyticsEvents.WALLET_CONNECT_FAILURE, { error: errorMessage });
+      setState((s) => ({
+        ...s,
+        isLoading: false,
+        error: errorMessage,
       console.error("Reconnection failed:", err);
       setState((s) => ({
         ...s,
@@ -702,6 +714,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       isWalletLocked: false,
       hasConnectionIssue: false,
     }));
+    trackEvent(AnalyticsEvents.WALLET_DISCONNECT);
   }, []);
 
   const clearError = useCallback(() => {

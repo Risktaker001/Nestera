@@ -19,6 +19,7 @@ export default function Page() {
 "use client";
 
 import React, { useState } from "react";
+import { trackEvent, AnalyticsEvents } from "../../lib/analytics";
 import {
   LifeBuoy,
   Search,
@@ -128,6 +129,7 @@ export default function SupportPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    trackEvent(AnalyticsEvents.FORM_SUBMIT_SUCCESS, { form: "support" });
     setSent(true);
   };
 
