@@ -131,16 +131,16 @@ export default function GoalBasedSavingsPage() {
         {/* View Toggles & Actions */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex bg-[#0e2330] p-1 rounded-xl border border-white/5">
-            <button className="min-h-11 p-2 rounded-lg bg-cyan-500/10 text-cyan-400 shadow-sm">
+            <Button variant="ghost" size="sm" className="bg-cyan-500/10 text-cyan-400" aria-label="Grid view">
               <LayoutGrid size={18} />
-            </button>
-            <button className="min-h-11 p-2 rounded-lg text-[#5e8c96] hover:text-white transition-colors">
+            </Button>
+            <Button variant="ghost" size="sm" aria-label="List view">
               <List size={18} />
-            </button>
+            </Button>
           </div>
-          <button className="min-h-11 rounded-xl bg-cyan-500 px-5 py-2.5 font-bold text-[#061a1a] shadow-lg transition-all hover:bg-cyan-400 active:scale-95">
+          <Button variant="primary" size="md">
             Create New Goal
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -168,6 +168,7 @@ export default function GoalBasedSavingsPage() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <Button variant="outline" size="md">
               <button
                 onClick={() => setExportOpen(true)}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-cyan-400/40 text-cyan-200 hover:text-white hover:border-cyan-300 transition-colors"
@@ -177,7 +178,7 @@ export default function GoalBasedSavingsPage() {
               </button>
               <button className="px-5 py-2.5 rounded-xl border border-cyan-400/20 text-cyan-400/70 hover:text-white hover:border-cyan-300 transition-colors">
                 View Templates
-              </button>
+              </Button>
               <Link
                 href="/savings/create-goal"
                 className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-[#061a1a] font-semibold rounded-xl transition-all shadow-lg active:scale-95 inline-block"
