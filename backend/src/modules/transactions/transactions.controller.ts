@@ -14,6 +14,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { TransactionsService } from './transactions.service';
 import { TransactionQueryDto } from './dto/transaction-query.dto';
@@ -38,6 +39,12 @@ export class TransactionsController {
       'Returns a paginated list of transactions with robust filtering by type, date range, and pool ID. ' +
       'Dates are formatted for frontend display to minimize client-side dependencies.',
   })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
+  @ApiQuery({ name: 'type', required: false, enum: ['deposit', 'withdrawal', 'swap'] })
+  @ApiQuery({ name: 'startDate', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'endDate', required: false, type: String, format: 'date' })
+  @ApiQuery({ name: 'poolId', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'Paginated transaction history',
@@ -46,6 +53,14 @@ export class TransactionsController {
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid query parameters',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests - rate limit exceeded',
   })
   async getTransactions(
     @CurrentUser() user: { id: string },
@@ -60,10 +75,20 @@ export class TransactionsController {
     description:
       'Streams transactions as CSV for download with controlled memory usage while respecting query filters.',
   })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 100 })
   @ApiResponse({ status: 200, description: 'CSV file stream' })
   @ApiResponse({
     status: 401,
     description: 'Unauthorized - Invalid or missing JWT token',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid query parameters',
+  })
+  @ApiResponse({
+    status: 429,
+    description: 'Too many requests - rate limit exceeded',
   })
   async exportTransactions(
     @CurrentUser() user: { id: string },

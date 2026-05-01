@@ -1,0 +1,24 @@
+{
+  "title": "Nestera - Ahorros Descentralizados en Stellar",
+  "description": "Ahorros seguros y transparentes impulsados por Stellar y Soroban",
+  "nav": {
+    "features": "Funciones",
+    "savings": "Ahorros",
+    "dashboard": "Panel",
+    "community": "Comunidad",
+    "docs": "Docs"
+  },
+  "actions": {
+    "connectWallet": "Conectar Billetera",
+    "connecting": "Conectando..."
+  },
+  "toast": {
+    "walletConnected": "Billetera conectada",
+    "walletFailed": "Fallo en la conexión de la billetera"
+  },
+  "language": {
+    "label": "Idioma",
+    "en": "Inglés",
+    "es": "Español"
+  }
+}

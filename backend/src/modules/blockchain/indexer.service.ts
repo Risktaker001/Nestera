@@ -27,6 +27,7 @@ import {
   UserSubscription,
 } from '../savings/entities/user-subscription.entity';
 import { User } from '../user/entities/user.entity';
+import { GracefulShutdownService } from '../../common/services/graceful-shutdown.service';
 
 /** Shape of a raw Soroban event as returned by the RPC. */
 interface SorobanEvent {
@@ -87,6 +88,7 @@ export class IndexerService implements OnModuleInit {
     private readonly depositHandler: DepositHandler,
     private readonly withdrawHandler: WithdrawHandler,
     private readonly yieldHandler: YieldHandler,
+    private readonly gracefulShutdown: GracefulShutdownService,
   ) {}
 
   async onModuleInit() {
@@ -104,16 +106,23 @@ export class IndexerService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_5_SECONDS)
   async runIndexerCycle(): Promise<void> {
-    if (!this.indexerState) return;
-
-    // Reload contract IDs to ensure we're watching any new active products
-    await this.loadContractIds();
-    if (this.contractIds.size === 0) {
-      this.logger.debug('No active contracts to monitor');
+    if (!this.indexerState || this.gracefulShutdown.isShutdown()) {
+      if (this.gracefulShutdown.isShutdown()) {
+        this.logger.debug('Skipping indexer cycle: service is shutting down');
+      }
       return;
     }
 
+    this.gracefulShutdown.incrementBackgroundTask();
+
     try {
+      // Reload contract IDs to ensure we're watching any new active products
+      await this.loadContractIds();
+      if (this.contractIds.size === 0) {
+        this.logger.debug('No active contracts to monitor');
+        return;
+      }
+
       const scanStartLedger = this.getReorgScanStartLedger();
       const events = await this.fetchEvents(scanStartLedger);
 
@@ -156,6 +165,14 @@ export class IndexerService implements OnModuleInit {
       let failed = 0;
 
       for (const event of eventsToProcess) {
+        // Double check shutdown flag within loop for long-running batches
+        if (this.gracefulShutdown.isShutdown()) {
+          this.logger.warn(
+            `Indexer cycle interrupted by shutdown. Last processed ledger: ${this.indexerState.lastProcessedLedger}`,
+          );
+          break;
+        }
+
         const ok = await this.processEvent(event);
         if (ok) {
           processed++;
@@ -175,6 +192,8 @@ export class IndexerService implements OnModuleInit {
       await this.saveIndexerState();
     } catch (err) {
       this.logger.error(`Indexer cycle failed: ${(err as Error).message}`);
+    } finally {
+      this.gracefulShutdown.decrementBackgroundTask();
     }
   }
 

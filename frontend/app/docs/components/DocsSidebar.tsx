@@ -49,7 +49,9 @@ const DocsSidebar: React.FC<DocsSidebarProps> = ({ activeSection, onSectionChang
         {sidebarItems.map((item) => (
           <button
             key={item.id}
+            type="button"
             onClick={() => onSectionChange(item.id)}
+            aria-current={activeSection === item.id ? 'page' : undefined}
             className={clsx(
               "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 text-left border-none cursor-pointer",
               activeSection === item.id
@@ -60,7 +62,7 @@ const DocsSidebar: React.FC<DocsSidebarProps> = ({ activeSection, onSectionChang
             <item.icon size={18} />
             {item.label}
           </button>
-        ))}
+        ))} 
       </nav>
     </aside>
   );

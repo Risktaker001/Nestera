@@ -1,9 +1,18 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Download, History, Loader2, Search, ChevronDown, Inbox } from "lucide-react";
+import { Download, History, Loader2, ChevronDown, Inbox } from "lucide-react";
 import TransactionRow, { TransactionType, TransactionStatus } from "./components/TransactionRow";
 import { useToast } from "../../context/ToastContext";
+import { useSearchFilter } from "../../hooks/useSearchFilter";
+import SearchFilterSystem from "../../components/ui/SearchFilterSystem";
+import { toCsv, downloadTextFile } from "../../utils/csvExport";
+
+export default function TransactionHistoryPage() {
+  const [isLoading, setIsLoading] = useState(true);
+import ExportModal from "../../components/dashboard/ExportModal";
+
+import { TransactionsSkeleton } from "../../components/ui/PageSkeletons";
 
 type TransactionRowData = {
   date: string;
@@ -17,49 +26,21 @@ type TransactionRowData = {
   hash: string;
 };
 
-function csvEscape(value: string) {
-  const needsQuotes = /[",\n]/.test(value);
-  const escaped = value.replaceAll('"', '""');
-  return needsQuotes ? `"${escaped}"` : escaped;
-}
-
-function toCsv(rows: TransactionRowData[]) {
-  const header = ["date", "time", "transactionId", "type", "assetDetails", "amountDisplay", "status", "hash"];
-  const lines = [
-    header.join(","),
-    ...rows.map((r) =>
-      [r.date, r.time, r.transactionId, r.type, r.assetDetails, r.amountDisplay, r.status, r.hash]
-        .map(csvEscape)
-        .join(","),
-    ),
-  ];
-  return `${lines.join("\n")}\n`;
-}
-
-function downloadTextFile(
-  filename: string,
-  text: string,
-  mime = "text/csv;charset=utf-8",
-) {
-  const blob = new Blob([text], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
 
 export default function TransactionHistoryPage() {
   const [isLoading, setIsLoading] = useState(true);
+  const [showTimeoutMessage, setShowTimeoutMessage] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => setIsLoading(false), 750);
-    return () => window.clearTimeout(timeoutId);
+    const loadTimer = window.setTimeout(() => setIsLoading(false), 750);
+    const timeoutTimer = window.setTimeout(() => setShowTimeoutMessage(true), 5000);
+    return () => {
+      window.clearTimeout(loadTimer);
+      window.clearTimeout(timeoutTimer);
+    };
   }, []);
 
   const transactions: TransactionRowData[] = [
@@ -109,40 +90,55 @@ export default function TransactionHistoryPage() {
     },
   ];
 
+  const {
+    query,
+    setQuery,
+    ranges,
+    setRanges,
+    history,
+    addToHistory,
+    presets,
+    savePreset,
+    applyPreset,
+    clearFilters,
+    filteredItems: filteredTransactions,
+  } = useSearchFilter(transactions, {
+    includeFields: ["date", "transactionId", "type", "assetDetails", "amountDisplay", "status", "hash"],
+  });
+
+  const hasTransactions = filteredTransactions.length > 0;
+
   function onExportCsv() {
-    const csv = toCsv(transactions);
+    const csv = toCsv(filteredTransactions, ["date", "time", "transactionId", "type", "assetDetails", "amountDisplay", "status", "hash"]);
     downloadTextFile(
       `nestera-transactions-${new Date().toISOString().slice(0, 10)}.csv`,
       csv,
     );
     toast.success("Transactions exported", "CSV file downloaded successfully.");
   }
-
-  const filteredTransactions = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    if (!query) return transactions;
-
-    return transactions.filter((transaction) =>
-      [
-        transaction.date,
-        transaction.time,
-        transaction.transactionId,
-        transaction.type,
-        transaction.assetDetails,
-        transaction.amountDisplay,
-        transaction.status,
-        transaction.hash,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [searchQuery, transactions]);
-
-  const hasTransactions = filteredTransactions.length > 0;
+  // exportRows: normalised objects for ExportService
+  const exportRows = transactions.map((t) => ({
+    date: t.date,
+    time: t.time,
+    transactionId: t.transactionId,
+    type: t.type,
+    assetDetails: t.assetDetails,
+    amount: t.amountDisplay,
+    status: t.status,
+    hash: t.hash,
+  }));
 
   return (
     <div className="w-full max-w-7xl mx-auto pb-20">
+      <ExportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        dataType="transactions"
+        title="Transaction History"
+        rows={exportRows}
+        dateKey="date"
+      />
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-linear-to-b from-[#063d3d] to-[#0a6f6f] flex items-center justify-center text-cyan-400 shadow-[0_8px_20px_rgba(6,61,61,0.3)]">
@@ -153,57 +149,43 @@ export default function TransactionHistoryPage() {
               Transaction History
             </h1>
             <p className="text-[#5e8c96] text-sm md:text-base m-0 mt-1">
-              Download your transactions as a CSV file for reporting.
+              Export your transactions as CSV, JSON, or PDF for reporting &amp; tax.
             </p>
           </div>
         </div>
 
         <button
-          onClick={onExportCsv}
+          onClick={() => setExportOpen(true)}
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-cyan-500 px-5 py-2.5 font-bold text-[#061a1a] shadow-lg transition-all hover:bg-cyan-400 active:scale-95"
         >
           <Download size={18} />
-          Export CSV
+          Export Data
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 mb-6">
-        <div className="relative min-w-0 flex-1">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5e8c96]"
-            size={18}
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by transaction, token, or hash..."
-            className="w-full bg-[#0e2330] border border-white/5 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-[#4e7a86] focus:outline-hidden focus:border-cyan-500/50 transition-colors"
-          />
-        </div>
-
-        {["Type: All", "Asset: All", "Status: All"].map((filter) => (
-          <button
-            type="button"
-            key={filter}
-            className="flex min-h-11 items-center gap-2 rounded-xl border border-white/5 bg-[#0e2330] px-4 py-3 text-[#5e8c96] transition-all hover:border-white/10 hover:text-white"
-          >
-            <span className="text-sm font-medium">{filter}</span>
-            <ChevronDown size={14} opacity={0.7} />
-          </button>
-        ))}
-      </div>
+      <SearchFilterSystem
+        query={query}
+        setQuery={setQuery}
+        ranges={ranges}
+        setRanges={setRanges}
+        history={history}
+        addToHistory={addToHistory}
+        presets={presets}
+        savePreset={savePreset}
+        applyPreset={applyPreset}
+        clearFilters={clearFilters}
+        placeholder="Search transactions (e.g. deposit AND USDC)..."
+      />
 
       <div className="rounded-2xl border border-white/5 bg-[#0e2330]">
         {isLoading ? (
-          <div className="space-y-4 p-4" aria-live="polite" aria-busy="true">
-            <div className="inline-flex items-center gap-2 text-xs text-[#7fa9b0]">
-              <Loader2 size={14} className="animate-spin text-cyan-400" />
-              Loading transaction history...
-            </div>
-            {[1, 2, 3, 4].map((row) => (
-              <div key={row} className="h-[72px] animate-pulse rounded-xl bg-white/5" />
-            ))}
+          <div className="p-4" aria-live="polite" aria-busy="true">
+            <TransactionsSkeleton />
+            {showTimeoutMessage && (
+              <p className="mt-4 text-center text-sm text-[var(--color-text-muted)] animate-pulse">
+                Still loading history... This is taking longer than expected.
+              </p>
+            )}
           </div>
         ) : hasTransactions ? (
           <div className="overflow-x-auto">
@@ -239,17 +221,17 @@ export default function TransactionHistoryPage() {
               <Inbox size={30} />
             </div>
             <h3 className="text-xl font-semibold text-[#dff]">
-              {searchQuery.trim() ? "No matching transactions" : "No transactions yet"}
+              {query.trim() ? "No matching transactions" : "No transactions yet"}
             </h3>
             <p className="mt-2 max-w-lg text-sm text-[#90b4b4]">
-              {searchQuery.trim()
+              {query.trim()
                 ? "Try a different token, transaction type, or hash to narrow your search."
                 : "Once deposits, withdrawals, swaps, or rewards are recorded, they will appear here."}
             </p>
-            {searchQuery.trim() ? (
+            {query.trim() ? (
               <button
                 type="button"
-                onClick={() => setSearchQuery("")}
+                onClick={clearFilters}
                 className="mt-6 rounded-xl bg-cyan-500 px-6 py-2.5 font-semibold text-[#061a1a] hover:bg-cyan-400"
               >
                 Clear search
@@ -257,10 +239,10 @@ export default function TransactionHistoryPage() {
             ) : (
               <button
                 type="button"
-                onClick={onExportCsv}
+                onClick={() => setExportOpen(true)}
                 className="mt-6 rounded-xl border border-cyan-500/30 px-6 py-2.5 font-semibold text-cyan-300 hover:bg-cyan-500/10"
               >
-                Export sample CSV
+                Export Data
               </button>
             )}
           </div>

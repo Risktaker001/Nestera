@@ -5,6 +5,7 @@ import { X, ExternalLink, AlertTriangle, Shield } from "lucide-react";
 import { getNetworkConfig } from "../../constants/networks";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
 import { useToast } from "../../context/ToastContext";
+import { Button } from "../ui/Button";
 
 /**
  * NetworkSwitchModal Component
@@ -252,29 +253,12 @@ const NetworkSwitchModal: React.FC<NetworkSwitchModalProps> = ({
 
         {/* Modal Footer - Action Buttons */}
         <div className="flex gap-3 p-6 pt-4 border-t border-white/5">
-          <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-sm font-medium hover:bg-white/10 transition-colors cursor-pointer"
-          >
+          <Button variant="secondary" size="md" fullWidth onClick={onClose}>
             Close
-          </button>
-          <button
-            onClick={handleOpenFreighter}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors cursor-pointer flex items-center justify-center gap-2"
-            style={{
-              backgroundColor: "#08c1c1",
-              color: "#021515",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "#0fa3a3";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "#08c1c1";
-            }}
-          >
+          </Button>
+          <Button variant="primary" size="md" fullWidth rightIcon={<ExternalLink size={14} />} onClick={handleOpenFreighter}>
             Open Freighter
-            <ExternalLink size={14} />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

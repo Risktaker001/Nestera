@@ -14,6 +14,8 @@ import {
   MaxFileSizeValidator,
   FileTypeValidator,
   ClassSerializerInterceptor,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
@@ -21,6 +23,9 @@ import {
   ApiOperation,
   ApiResponse,
   ApiTags,
+  ApiParam,
+  ApiBody,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { StorageService } from '../storage/storage.service';
 import { UserService } from './user.service';
@@ -78,20 +83,6 @@ export class UserController {
     private readonly savingsService: SavingsService,
   ) {}
 
-  /**
-   * GET /users/profile
-   *
-   * Full hydrated profile for the authenticated user.
-   * Used by the frontend dashboard on boot to render the connect-wallet
-   * state, voting capabilities, and user details.
-   *
-   * - Strictly requires a valid Bearer JWT (JwtAuthGuard on the controller).
-   * - ClassSerializerInterceptor applied at method level ensures @Exclude()
-   *   on UserProfileResponseDto strips password hashes / nonces before the
-   *   JSON response is sent.
-   * - `walletAddress` is the linked Stellar public key (null if not yet linked).
-   * - `daysActive` is computed in UserService; never stored in the DB.
-   */
   @Get('profile')
   @UseInterceptors(ClassSerializerInterceptor)
   @ApiOperation({
@@ -115,21 +106,51 @@ export class UserController {
   }
 
   @Get('me')
-  @ApiOperation({ summary: 'Get basic info for the authenticated user' })
+  @ApiOperation({
+    summary: 'Get basic info for the authenticated user',
+    description: 'Returns basic user information (id, email, name, bio, avatarUrl, publicKey, role, kycStatus, createdAt)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User information retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', example: '550e8400-e29b-41d4-a716-446655440000' },
+        email: { type: 'string', example: 'alice@example.com' },
+        name: { type: 'string', example: 'Alice Johnson' },
+        bio: { type: 'string', nullable: true, example: 'Crypto enthusiast' },
+        avatarUrl: { type: 'string', nullable: true, format: 'uri' },
+        publicKey: { type: 'string', nullable: true, example: 'GABCDEF...' },
+        role: { type: 'string', enum: ['USER', 'ADMIN'], example: 'USER' },
+        kycStatus: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'], example: 'APPROVED' },
+        createdAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - No valid JWT token' })
   getMe(@CurrentUser() user: { id: string }) {
     return this.userService.findById(user.id);
   }
 
   @Get('me/net-worth')
+  @ApiOperation({
+    summary: 'Get authenticated user\'s net worth breakdown',
+    description: 'Calculates total net worth including wallet balance and all savings (flexible + locked) with percentage breakdown',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Net worth calculated successfully',
+    type: NetWorthDto,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized - No valid JWT token' })
   async getNetWorth(@CurrentUser() user: { id: string }): Promise<NetWorthDto> {
     const userEntity = await this.userService.findById(user.id);
 
-    // If user has no public key, return zero balances
     if (!userEntity.publicKey) {
       return this.createZeroNetWorthResponse();
     }
 
-    // Fetch wallet and savings data in parallel
     const [walletBalance, savingsBalance] = await Promise.all([
       this.savingsService.getWalletBalance(userEntity.publicKey),
       this.savingsService.getUserSavingsBalance(userEntity.publicKey),
@@ -138,7 +159,6 @@ export class UserController {
     const totalSavings = savingsBalance.total;
     const totalNetWorth = walletBalance + totalSavings;
 
-    // Calculate percentages
     const walletPercentage =
       totalNetWorth > 0 ? (walletBalance / totalNetWorth) * 100 : 0;
     const savingsPercentage =
@@ -166,16 +186,91 @@ export class UserController {
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Get user by ID',
+    description: 'Retrieve user information by unique identifier (admin or self only)',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'User UUID',
+    type: 'string',
+    format: 'uuid',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User found',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        email: { type: 'string' },
+        name: { type: 'string', nullable: true },
+        bio: { type: 'string', nullable: true },
+        publicKey: { type: 'string', nullable: true },
+        role: { type: 'string', enum: ['USER', 'ADMIN'] },
+        kycStatus: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] },
+        createdAt: { type: 'string', format: 'date-time' },
+        updatedAt: { type: 'string', format: 'date-time' },
+      },
+    },
+  })
+  @ApiResponse({ status: 404, description: 'User not found' })
   findOne(@Param('id') id: string) {
     return this.userService.findById(id);
   }
 
   @Patch('me')
+  @ApiOperation({
+    summary: 'Update authenticated user profile',
+    description: 'Update user name and bio. All fields are optional - only provided fields will be updated.',
+  })
+  @ApiBody({
+    description: 'User update data',
+    type: UpdateUserDto,
+    examples: {
+      nameOnly: {
+        value: { name: 'Alice Updated' },
+        summary: 'Update name only',
+      },
+      bioOnly: {
+        value: { bio: 'Updated bio description' },
+        summary: 'Update bio only',
+      },
+      both: {
+        value: { name: 'Alice Johnson', bio: 'Updated bio' },
+        summary: 'Update both name and bio',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        email: { type: 'string' },
+        name: { type: 'string' },
+        bio: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
   updateMe(@CurrentUser() user: { id: string }, @Body() dto: UpdateUserDto) {
     return this.userService.update(user.id, dto);
   }
 
   @Delete('me')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    summary: 'Delete authenticated user account',
+    description: 'Permanently deletes the user account associated with the JWT token. This action cannot be undone.',
+  })
+  @ApiResponse({ status: 204, description: 'Account deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User not found' })
   deleteMe(@CurrentUser() user: { id: string }) {
     return this.userService.remove(user.id);
   }
@@ -183,11 +278,47 @@ export class UserController {
   @Post('avatar')
   @UseGuards(ThrottlerGuard)
   @UseInterceptors(FileInterceptor('file'))
+  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Upload profile avatar',
+    description: 'Upload a profile picture (JPEG, PNG, or WebP, max 5MB). The file is uploaded to storage and the avatarUrl is updated.',
+  })
+  @ApiBody({
+    description: 'Avatar image file',
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Image file (JPEG, PNG, WebP) - max 5MB',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Avatar uploaded successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        avatarUrl: {
+          type: 'string',
+          format: 'uri',
+          example: 'https://cdn.nestera.io/avatars/user-123.jpg',
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid file type or size (must be JPEG, PNG, or WebP under 5MB)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async uploadAvatar(
     @CurrentUser() user: { id: string },
     @UploadedFile(
       new ParseFilePipe({
         validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }),
           new MaxFileSizeValidator({ maxSize: MAX_AVATAR_SIZE }),
           new ImageTypeValidator(),
         ],
@@ -203,11 +334,48 @@ export class UserController {
   @Post('me/kyc-docs')
   @UseGuards(ThrottlerGuard)
   @UseInterceptors(FileInterceptor('document'))
+  @HttpCode(HttpStatus.OK)
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'Upload KYC verification document',
+    description: 'Upload KYC documents (PDF or JPEG, max 10MB) for identity verification. Document will be stored and linked to user account.',
+  })
+  @ApiBody({
+    description: 'KYC document file',
+    schema: {
+      type: 'object',
+      properties: {
+        document: {
+          type: 'string',
+          format: 'binary',
+          description: 'KYC document (PDF or JPEG) - max 10MB',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'KYC document uploaded successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        kycDocumentUrl: {
+          type: 'string',
+          format: 'uri',
+          example: 'https://cdn.nestera.io/kyc/user-123-doc.pdf',
+        },
+        message: { type: 'string', example: 'KYC document uploaded' },
+      },
+    },
+  })
+  @ApiResponse({ status: 400, description: 'Invalid file type or size (must be PDF or JPEG under 10MB)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async uploadKycDocument(
     @CurrentUser() user: { id: string },
     @UploadedFile(
       new ParseFilePipe({
         validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 10 }),
           new MaxFileSizeValidator({ maxSize: MAX_KYC_DOC_SIZE }),
           new KycDocumentValidator(),
         ],

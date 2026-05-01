@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Landmark,
   Loader2,
-  Search,
   ChevronDown,
   LayoutGrid,
   List,
@@ -13,12 +13,22 @@ import SavingsPoolCard, {
   type SavingsPool,
 } from "@/app/components/dashboard/SavingsPoolCard";
 import { useToast } from "@/app/context/ToastContext";
+import { useSearchFilter } from "@/app/hooks/useSearchFilter";
+import SearchFilterSystem from "@/app/components/ui/SearchFilterSystem";
+import { toCsv, downloadTextFile } from "@/app/utils/csvExport";
+import { Download } from "lucide-react";
+import { SAVINGS_POOLS } from "@/app/data/savingsPools";
+import {
+  savingsPoolDepositStateQueryKey,
+  savingsPoolsQueryKey,
+  STATIC_QUERY_GC_TIME,
+  STATIC_QUERY_STALE_TIME,
+} from "@/app/lib/query";
 
 export default function GoalBasedSavingsPage() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const toast = useToast();
-  // Savings pools data
+
   const savingsPools: SavingsPool[] = [
     {
       id: "usdc-flexible",
@@ -39,67 +49,94 @@ export default function GoalBasedSavingsPage() {
       apy: 4.5,
       tvl: "$12.8M",
       riskLevel: "Medium Risk",
-    },
-    {
-      id: "aqua-farming",
-      name: "AQUA Farming",
-      strategy: "DeFi",
-      icon: "A",
-      iconBgColor: "bg-gradient-to-br from-cyan-500 to-cyan-600",
-      apy: 18.5,
-      tvl: "$2.1M",
-      riskLevel: "High Risk",
-    },
-    {
-      id: "eurc-yield",
-      name: "EURC Yield",
-      strategy: "Euro Stable",
-      icon: "€",
-      iconBgColor: "bg-gradient-to-br from-indigo-500 to-indigo-600",
-      apy: 3.2,
-      tvl: "$8.4M",
-      riskLevel: "Low Risk",
-    },
-    {
-      id: "yusdc-vault",
-      name: "yUSDC Vault",
-      strategy: "Yield Aggregator",
-      icon: "y",
-      iconBgColor: "bg-gradient-to-br from-teal-500 to-teal-600",
-      apy: 8.1,
-      tvl: "$4.2M",
-      riskLevel: "Medium Risk",
-    },
-    {
-      id: "btc-xlm-lp",
-      name: "BTC-XLM LP",
-      strategy: "Liquidity Pool",
-      icon: "₿",
-      iconBgColor: "bg-gradient-to-br from-orange-500 to-orange-600",
-      apy: 12.4,
-      tvl: "$5.6M",
-      riskLevel: "High Risk",
-    },
-  ];
+  const queryClient = useQueryClient();
 
-  // Filter pools based on search query
-  const filteredPools = useMemo(() => {
-    if (!searchQuery.trim()) {
-      return savingsPools;
-    }
+  const poolsQuery = useQuery({
+    queryKey: savingsPoolsQueryKey,
+    queryFn: async () => SAVINGS_POOLS,
+    staleTime: STATIC_QUERY_STALE_TIME,
+    gcTime: STATIC_QUERY_GC_TIME,
+    initialData: SAVINGS_POOLS,
+  });
 
-    const query = searchQuery.toLowerCase();
-    return savingsPools.filter(
-      (pool) =>
-        pool.name.toLowerCase().includes(query) ||
-        pool.strategy.toLowerCase().includes(query) ||
-        pool.riskLevel.toLowerCase().includes(query),
-    );
-  }, [searchQuery, savingsPools]);
+  const depositStateQuery = useQuery<string | null>({
+    queryKey: savingsPoolDepositStateQueryKey,
+    queryFn: async () => null,
+    staleTime: STATIC_QUERY_STALE_TIME,
+    gcTime: STATIC_QUERY_GC_TIME,
+    initialData: null,
+    enabled: false,
+  });
+
+  const savingsPools = poolsQuery.data ?? SAVINGS_POOLS;
+  const activeDepositId = depositStateQuery.data;
+
+  const depositMutation = useMutation({
+    mutationFn: async (poolId: string) => {
+      await new Promise((resolve) => window.setTimeout(resolve, 700));
+      return poolId;
+    },
+    onMutate: async (poolId: string) => {
+      await queryClient.cancelQueries({
+        queryKey: savingsPoolDepositStateQueryKey,
+      });
+
+      const previousDepositId =
+        queryClient.getQueryData<string | null>(
+          savingsPoolDepositStateQueryKey,
+        ) ?? null;
+
+      queryClient.setQueryData(savingsPoolDepositStateQueryKey, poolId);
+      toast.info(
+        "Deposit queued",
+        `Optimistically reserving ${poolId} while the action completes.`,
+      );
+
+      return { previousDepositId };
+    },
+    onError: (_error, _poolId, context) => {
+      queryClient.setQueryData(
+        savingsPoolDepositStateQueryKey,
+        context?.previousDepositId ?? null,
+      );
+      toast.error("Deposit failed", "The optimistic update was rolled back.");
+    },
+    onSuccess: (poolId) => {
+      toast.success("Deposit ready", `Selected pool: ${poolId}`);
+    },
+    onSettled: () => {
+      queryClient.setQueryData(savingsPoolDepositStateQueryKey, null);
+    },
+  });
+
+  const {
+    query,
+    setQuery,
+    ranges,
+    setRanges,
+    history,
+    addToHistory,
+    presets,
+    savePreset,
+    applyPreset,
+    clearFilters,
+    filteredItems: filteredPools,
+  } = useSearchFilter(savingsPools, {
+    includeFields: ["name", "strategy", "riskLevel"],
+  });
 
   const handleDeposit = (poolId: string) => {
-    toast.info("Deposit flow opening", `Selected pool: ${poolId}`);
+    depositMutation.mutate(poolId);
   };
+
+  function onExportCsv() {
+    const csv = toCsv(filteredPools, ["name", "strategy", "apy", "tvl", "riskLevel"]);
+    downloadTextFile(
+      `nestera-savings-pools-${new Date().toISOString().slice(0, 10)}.csv`,
+      csv,
+    );
+    toast.success("Pools exported", "CSV file downloaded successfully.");
+  }
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setIsLoading(false), 700);
@@ -127,55 +164,41 @@ export default function GoalBasedSavingsPage() {
         {/* View Toggles & Actions */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex bg-[#0e2330] p-1 rounded-xl border border-white/5">
-            <button className="min-h-11 p-2 rounded-lg bg-cyan-500/10 text-cyan-400 shadow-sm">
+            <Button variant="ghost" size="sm" className="bg-cyan-500/10 text-cyan-400" aria-label="Grid view">
               <LayoutGrid size={18} />
-            </button>
-            <button className="min-h-11 p-2 rounded-lg text-[#5e8c96] hover:text-white transition-colors">
+            </Button>
+            <Button variant="ghost" size="sm" aria-label="List view">
               <List size={18} />
-            </button>
+            </Button>
           </div>
-          <button className="min-h-11 rounded-xl bg-cyan-500 px-5 py-2.5 font-bold text-[#061a1a] shadow-lg transition-all hover:bg-cyan-400 active:scale-95">
-            Create New Goal
+          <button
+            onClick={onExportCsv}
+            className="flex min-h-11 items-center gap-2 rounded-xl border border-white/5 bg-[#0e2330] px-4 py-2 text-[#5e8c96] hover:text-white transition-all"
+          >
+            <Download size={18} />
+            Export CSV
           </button>
+          <button className="min-h-11 rounded-xl bg-cyan-500 px-5 py-2.5 font-bold text-[#061a1a] shadow-lg transition-all hover:bg-cyan-400 active:scale-95">
+          <Button variant="primary" size="md">
+            Create New Goal
+          </Button>
         </div>
       </div>
 
       {/* Search & Filters Row */}
-      <div className="flex flex-wrap items-center gap-4 mb-8">
-        <div className="relative min-w-0 flex-1">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-[#5e8c96]"
-            size={18}
-          />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search pools by name, strategy, or risk level..."
-            className="w-full bg-[#0e2330] border border-white/5 rounded-xl py-3 pl-12 pr-4 text-white placeholder:text-[#4e7a86] focus:outline-hidden focus:border-cyan-500/50 transition-colors"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {[
-            { label: "Asset: All", active: true },
-            { label: "Risk: All Levels", active: false },
-            { label: "Sort by: APY", active: false },
-          ].map((filter, i) => (
-            <button
-              key={i}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl border transition-all ${
-                filter.active
-                  ? "bg-cyan-500/5 border-cyan-500/20 text-cyan-400"
-                  : "bg-[#0e2330] border-white/5 text-[#5e8c96] hover:border-white/10 hover:text-white"
-              } min-h-11`}
-            >
-              <span className="text-sm font-medium">{filter.label}</span>
-              <ChevronDown size={14} opacity={0.7} />
-            </button>
-          ))}
-        </div>
-      </div>
+          <SearchFilterSystem
+        query={query}
+        setQuery={setQuery}
+        ranges={ranges}
+        setRanges={setRanges}
+        history={history}
+        addToHistory={addToHistory}
+        presets={presets}
+        savePreset={savePreset}
+        applyPreset={applyPreset}
+        clearFilters={clearFilters}
+        placeholder="Search pools (e.g. DeFi AND Low Risk)..."
+      />
 
       {/* Section Header */}
       <div className="flex items-center justify-between mb-6">
@@ -209,6 +232,7 @@ export default function GoalBasedSavingsPage() {
               key={pool.id}
               pool={pool}
               onDeposit={handleDeposit}
+              isDepositing={activeDepositId === pool.id}
             />
           ))}
         </div>
@@ -225,7 +249,7 @@ export default function GoalBasedSavingsPage() {
             looking for.
           </p>
           <button
-            onClick={() => setSearchQuery("")}
+            onClick={clearFilters}
             className="mt-6 px-6 py-2.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-xl font-medium hover:bg-cyan-500/20 transition-all"
           >
             Clear Search

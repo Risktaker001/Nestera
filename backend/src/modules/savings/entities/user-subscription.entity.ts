@@ -6,6 +6,8 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
+  VersionColumn,
 } from 'typeorm';
 import { SavingsProduct } from './savings-product.entity';
 
@@ -16,6 +18,9 @@ export enum SubscriptionStatus {
 }
 
 @Entity('user_subscriptions')
+@Index('idx_user_subscriptions_user_id_status', ['userId', 'status'])
+@Index('idx_user_subscriptions_product_id_status', ['productId', 'status'])
+@Index('idx_user_subscriptions_user_id_product_id', ['userId', 'productId'])
 export class UserSubscription {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -44,6 +49,9 @@ export class UserSubscription {
 
   @Column('decimal', { precision: 20, scale: 7, default: 0 })
   totalInterestEarned: string;
+
+  @VersionColumn()
+  version: number;
 
   @CreateDateColumn()
   createdAt: Date;

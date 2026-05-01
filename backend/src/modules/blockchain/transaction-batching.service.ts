@@ -12,6 +12,7 @@ import {
   ContractBatchOperation,
   StellarService,
 } from './stellar.service';
+import { GracefulShutdownService } from '../../common/services/graceful-shutdown.service';
 import {
   TransactionBatch,
   TransactionBatchStatus,
@@ -44,98 +45,106 @@ export class TransactionBatchingService {
     private readonly batchRepository: Repository<TransactionBatch>,
     @InjectRepository(TransactionBatchOperationEntity)
     private readonly operationRepository: Repository<TransactionBatchOperationEntity>,
+    private readonly gracefulShutdown: GracefulShutdownService,
   ) {}
 
-  async createAndProcessBatch(
-    secretKey: string,
-    operations: BatchableContractOperation[],
-    options: CreateBatchOptions = {},
-  ): Promise<TransactionBatch> {
-    this.validateSecretKey(secretKey);
-    this.validateOperations(operations);
-
-    const maxBatchSize = this.resolveMaxBatchSize(options.maxBatchSize);
-    const estimatedIndividualFee = this.calculateEstimatedIndividualFee(
-      operations.length,
-    );
-
-    let batch = this.batchRepository.create({
-      status: TransactionBatchStatus.PENDING,
-      requestedOperationCount: operations.length,
-      completedCount: 0,
-      failedCount: 0,
-      maxBatchSize,
-      transactionHashes: [],
-      estimatedIndividualFee,
-      actualBatchFee: '0',
-      estimatedCostSavings: '0',
-      savingsPercentage: '0',
-      costMetricSource: 'base_fee_estimate',
-      errorMessage: null,
-      metadata: options.metadata ?? null,
-      startedAt: null,
-      completedAt: null,
-    });
-    batch = await this.batchRepository.save(batch);
-
-    const operationRows = await this.operationRepository.save(
-      operations.map((operation, index) =>
-        this.operationRepository.create({
-          batchId: batch.id,
-          operationIndex: index,
-          contractId: operation.contractId,
-          functionName: operation.functionName,
-          args: operation.args ?? [],
-          metadata: operation.metadata ?? null,
-          idempotencyKey:
-            operation.idempotencyKey ?? operation.clientKey ?? null,
-          status: TransactionBatchOperationStatus.PENDING,
-          txHash: null,
-          errorMessage: null,
-          startedAt: null,
-          completedAt: null,
-        }),
-      ),
-    );
-
-    batch.status = TransactionBatchStatus.PROCESSING;
-    batch.startedAt = new Date();
-    batch = await this.batchRepository.save(batch);
-
-    let actualBatchFee = 0n;
-    const transactionHashes = new Set<string>();
-
-    for (const chunk of this.chunkOperations(operationRows, maxBatchSize)) {
-      const result = await this.processChunk(secretKey, chunk);
-      actualBatchFee += result.actualFee;
-      result.transactionHashes.forEach((hash) => transactionHashes.add(hash));
+    if (this.gracefulShutdown.isShutdown()) {
+      throw new BadRequestException(
+        'Service is shutting down. No new transaction batches are being accepted.',
+      );
     }
 
-    const refreshedOperations = await this.operationRepository.find({
-      where: { batchId: batch.id },
-      order: { operationIndex: 'ASC' },
-    });
+    this.gracefulShutdown.incrementBackgroundTask();
 
-    const completedCount = refreshedOperations.filter(
-      (operation) =>
-        operation.status === TransactionBatchOperationStatus.COMPLETED,
-    ).length;
-    const failedCount = refreshedOperations.filter(
-      (operation) =>
-        operation.status === TransactionBatchOperationStatus.FAILED,
-    ).length;
+    try {
+      this.validateSecretKey(secretKey);
+      this.validateOperations(operations);
 
-    batch.completedCount = completedCount;
-    batch.failedCount = failedCount;
-    batch.transactionHashes = Array.from(transactionHashes);
-    batch.actualBatchFee = actualBatchFee.toString();
-    this.applyCostMetrics(batch);
-    batch.errorMessage = this.buildBatchErrorMessage(refreshedOperations);
-    batch.completedAt = new Date();
-    batch.status = this.resolveFinalStatus(completedCount, failedCount);
-    await this.batchRepository.save(batch);
+      const maxBatchSize = this.resolveMaxBatchSize(options.maxBatchSize);
+      const estimatedIndividualFee = this.calculateEstimatedIndividualFee(
+        operations.length,
+      );
 
-    return this.getBatchStatus(batch.id);
+      let batch = this.batchRepository.create({
+        status: TransactionBatchStatus.PENDING,
+        requestedOperationCount: operations.length,
+        completedCount: 0,
+        failedCount: 0,
+        maxBatchSize,
+        transactionHashes: [],
+        estimatedIndividualFee,
+        actualBatchFee: '0',
+        estimatedCostSavings: '0',
+        savingsPercentage: '0',
+        costMetricSource: 'base_fee_estimate',
+        errorMessage: null,
+        metadata: options.metadata ?? null,
+        startedAt: null,
+        completedAt: null,
+      });
+      batch = await this.batchRepository.save(batch);
+
+      const operationRows = await this.operationRepository.save(
+        operations.map((operation, index) =>
+          this.operationRepository.create({
+            batchId: batch.id,
+            operationIndex: index,
+            contractId: operation.contractId,
+            functionName: operation.functionName,
+            args: operation.args ?? [],
+            metadata: operation.metadata ?? null,
+            idempotencyKey:
+              operation.idempotencyKey ?? operation.clientKey ?? null,
+            status: TransactionBatchOperationStatus.PENDING,
+            txHash: null,
+            errorMessage: null,
+            startedAt: null,
+            completedAt: null,
+          }),
+        ),
+      );
+
+      batch.status = TransactionBatchStatus.PROCESSING;
+      batch.startedAt = new Date();
+      batch = await this.batchRepository.save(batch);
+
+      let actualBatchFee = 0n;
+      const transactionHashes = new Set<string>();
+
+      for (const chunk of this.chunkOperations(operationRows, maxBatchSize)) {
+        const result = await this.processChunk(secretKey, chunk);
+        actualBatchFee += result.actualFee;
+        result.transactionHashes.forEach((hash) => transactionHashes.add(hash));
+      }
+
+      const refreshedOperations = await this.operationRepository.find({
+        where: { batchId: batch.id },
+        order: { operationIndex: 'ASC' },
+      });
+
+      const completedCount = refreshedOperations.filter(
+        (operation) =>
+          operation.status === TransactionBatchOperationStatus.COMPLETED,
+      ).length;
+      const failedCount = refreshedOperations.filter(
+        (operation) =>
+          operation.status === TransactionBatchOperationStatus.FAILED,
+      ).length;
+
+      batch.completedCount = completedCount;
+      batch.failedCount = failedCount;
+      batch.transactionHashes = Array.from(transactionHashes);
+      batch.actualBatchFee = actualBatchFee.toString();
+      this.applyCostMetrics(batch);
+      batch.errorMessage = this.buildBatchErrorMessage(refreshedOperations);
+      batch.completedAt = new Date();
+      batch.status = this.resolveFinalStatus(completedCount, failedCount);
+      await this.batchRepository.save(batch);
+
+      return this.getBatchStatus(batch.id);
+    } finally {
+      this.gracefulShutdown.decrementBackgroundTask();
+    }
   }
 
   async getBatchStatus(id: string): Promise<TransactionBatch> {

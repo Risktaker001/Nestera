@@ -18,4 +18,4 @@ PR_DESCRIPTION_ISSUE74.md
 .agents/
 issue.md
 
-/contracts/test_snapshots
+/contracts/test_snapshots.codex/

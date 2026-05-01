@@ -9,6 +9,7 @@ export class GracefulShutdownService implements OnApplicationShutdown {
   private readonly logger = new Logger(GracefulShutdownService.name);
   private isShuttingDown = false;
   private activeRequests = 0;
+  private activeBackgroundTasks = 0;
   private readonly maxShutdownTimeout = 30000; // 30 seconds
 
   constructor(
@@ -26,21 +27,33 @@ export class GracefulShutdownService implements OnApplicationShutdown {
     this.activeRequests--;
   }
 
+  incrementBackgroundTask(): void {
+    if (!this.isShuttingDown) {
+      this.activeBackgroundTasks++;
+    }
+  }
+
+  decrementBackgroundTask(): void {
+    this.activeBackgroundTasks--;
+  }
+
   isShutdown(): boolean {
     return this.isShuttingDown;
   }
 
   async onApplicationShutdown(signal?: string): Promise<void> {
-    this.logger.log(`Received shutdown signal: ${signal}`);
+    if (this.isShuttingDown && !signal) {
+      // Already shut down manually via bootstrap
+      return;
+    }
+    
+    this.logger.log(`Received shutdown signal: ${signal || 'MANUAL'}`);
     this.isShuttingDown = true;
 
     const shutdownStartTime = Date.now();
 
-    // Stop accepting new requests
-    this.logger.log('Stopping acceptance of new requests');
-
-    // Wait for in-flight requests to complete
-    await this.waitForInFlightRequests();
+    // Wait for in-flight requests and background tasks to complete
+    await this.waitForDraining();
 
     // Close database connections
     await this.closeDatabase();
@@ -52,27 +65,43 @@ export class GracefulShutdownService implements OnApplicationShutdown {
     this.logger.log(`Graceful shutdown completed in ${shutdownDuration}ms`);
   }
 
-  private async waitForInFlightRequests(): Promise<void> {
-    const startTime = Date.now();
-    const timeout = 25000; // Leave 5 seconds for other cleanup
+  /**
+   * Sets the shutdown flag to true to prevent new work from starting.
+   */
+  initiateShutdown(): void {
+    this.isShuttingDown = true;
+    this.logger.log('Graceful shutdown initiated. No longer accepting new work.');
+  }
 
-    while (this.activeRequests > 0) {
+  /**
+   * Waits for all in-flight requests and background tasks to complete.
+   */
+  async waitForDraining(): Promise<void> {
+    const startTime = Date.now();
+    const timeout = 25000; // 25 seconds total for draining
+
+    while (this.activeRequests > 0 || this.activeBackgroundTasks > 0) {
       const elapsed = Date.now() - startTime;
 
       if (elapsed > timeout) {
         this.logger.warn(
-          `Timeout waiting for ${this.activeRequests} in-flight requests. Forcing shutdown.`,
+          `Timeout waiting for drain. Requests: ${this.activeRequests}, Background Tasks: ${this.activeBackgroundTasks}. Forcing shutdown.`,
         );
         break;
       }
 
       this.logger.log(
-        `Waiting for ${this.activeRequests} in-flight requests to complete...`,
+        `Waiting for drain... (Requests: ${this.activeRequests}, Background Tasks: ${this.activeBackgroundTasks})`,
       );
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    this.logger.log('All in-flight requests completed');
+    this.logger.log('All in-flight operations completed or timed out');
+  }
+
+  private async waitForInFlightRequests(): Promise<void> {
+    // Deprecated in favor of waitForDraining
+    return this.waitForDraining();
   }
 
   private async closeDatabase(): Promise<void> {

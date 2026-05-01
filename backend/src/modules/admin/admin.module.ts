@@ -14,6 +14,7 @@ import { AdminWaitlistController } from './admin-waitlist.controller';
 import { AdminUsersController } from './admin-users.controller';
 import { AdminWithdrawalController } from './admin-withdrawal.controller';
 import { AdminWithdrawalService } from './admin-withdrawal.service';
+import { WithdrawalFraudService } from './withdrawal-fraud.service';
 
 import { CircuitBreakerController } from './circuit-breaker.controller';
 import { AdminDisputesController } from './admin-disputes.controller';
@@ -81,6 +82,7 @@ import { Notification } from '../notifications/entities/notification.entity';
     AdminNotificationsService,
     AdminTransactionsService,
     AdminWithdrawalService,
+    WithdrawalFraudService,
   ],
   exports: [
     AdminDisputesService,
