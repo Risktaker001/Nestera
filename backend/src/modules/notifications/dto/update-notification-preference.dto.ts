@@ -10,18 +10,28 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { DigestFrequency } from '../entities/notification-preference.entity';
 
 export class UpdateNotificationPreferenceDto {
+  @ApiPropertyOptional({
+    description: 'Receive email notifications for account activity',
+    example: true,
+  })
   // Channel preferences
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   emailNotifications?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Receive in-app notifications',
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
   inAppNotifications?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Receive notifications about sweep events',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   pushNotifications?: boolean;
@@ -63,12 +73,18 @@ export class UpdateNotificationPreferenceDto {
   @IsBoolean()
   sweepNotifications?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Receive notifications about claim status updates',
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
   claimNotifications?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Receive notifications about yield earnings',
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
   yieldNotifications?: boolean;

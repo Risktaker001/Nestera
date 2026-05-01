@@ -109,7 +109,9 @@ const ContractDetailsCard: React.FC<ContractDetailsCardProps> = ({
             {truncateAddress(contract.contractId, 8)}
           </code>
           <button
+            type="button"
             onClick={handleCopyContractId}
+            aria-label="Copy contract ID"
             className="p-2 hover:bg-white/5 rounded-lg transition-colors duration-200"
             title="Copy contract ID"
           >

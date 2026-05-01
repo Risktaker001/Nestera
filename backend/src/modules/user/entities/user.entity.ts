@@ -89,4 +89,7 @@ export class User {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ default: true })
+  emailNotifications: boolean;
 }

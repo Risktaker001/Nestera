@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { MessageSquare, Send } from 'lucide-react';
+import { env } from '../../config/env';
 
 const CommunityHero: React.FC = () => {
   return (
@@ -38,7 +39,7 @@ const CommunityHero: React.FC = () => {
 
         <div className="flex items-center gap-4 flex-wrap justify-center mt-4">
           <a
-            href="https://discord.gg/nestera"
+            href={env.discordUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 px-8 py-4 bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold rounded-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_20px_rgba(88,101,242,0.3)]"
@@ -47,7 +48,7 @@ const CommunityHero: React.FC = () => {
             Join Discord
           </a>
           <a
-            href="https://t.me/nestera"
+            href={env.telegramUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-3 px-8 py-4 bg-[#229ED9] hover:bg-[#1C82B3] text-white font-bold rounded-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_10px_20px_rgba(34,158,217,0.3)]"

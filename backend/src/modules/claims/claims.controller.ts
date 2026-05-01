@@ -7,7 +7,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiParam } from '@nestjs/swagger';
 import { ClaimsService } from './claims.service';
 import { CreateClaimDto } from './dto/create-claim.dto';
 import { MedicalClaim } from './entities/medical-claim.entity';
@@ -19,7 +19,10 @@ export class ClaimsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Submit a new medical claim' })
+  @ApiOperation({
+    summary: 'Submit a new medical claim',
+    description: 'Create a new medical claim with patient information, diagnoses, and treatments.',
+  })
   @ApiBody({ type: CreateClaimDto })
   @ApiResponse({
     status: 201,
@@ -27,6 +30,8 @@ export class ClaimsController {
     type: MedicalClaim,
   })
   @ApiResponse({ status: 400, description: 'Invalid claim data' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   async submitClaim(
     @Body() createClaimDto: CreateClaimDto,
   ): Promise<MedicalClaim> {
@@ -40,18 +45,26 @@ export class ClaimsController {
     description: 'List of all claims',
     type: [MedicalClaim],
   })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async getAllClaims(): Promise<MedicalClaim[]> {
     return await this.claimsService.findAll();
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a specific claim by ID' })
+  @ApiParam({
+    name: 'id',
+    description: 'Claim UUID',
+    type: 'string',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   @ApiResponse({
     status: 200,
     description: 'Claim details',
     type: MedicalClaim,
   })
   @ApiResponse({ status: 404, description: 'Claim not found' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async getClaim(@Param('id') id: string): Promise<MedicalClaim | null> {
     return await this.claimsService.findOne(id);
   }
@@ -59,13 +72,24 @@ export class ClaimsController {
   @Post(':id/verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify claim with hospital' })
+  @ApiParam({
+    name: 'id',
+    description: 'Claim UUID',
+    type: 'string',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   @ApiResponse({
     status: 200,
     description: 'Claim verified with hospital',
     type: MedicalClaim,
   })
   @ApiResponse({ status: 404, description: 'Claim not found' })
-  @ApiResponse({ status: 503, description: 'Hospital service unavailable' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiResponse({
+    status: 503,
+    description: 'Hospital service unavailable',
+  })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   async verifyClaimWithHospital(
     @Param('id') id: string,
   ): Promise<MedicalClaim> {
@@ -74,11 +98,19 @@ export class ClaimsController {
 
   @Get(':id/hospital-data')
   @ApiOperation({ summary: 'Fetch claim data from hospital' })
+  @ApiParam({
+    name: 'id',
+    description: 'Claim UUID',
+    type: 'string',
+    example: '550e8400-e29b-41d4-a716-446655440000',
+  })
   @ApiResponse({ status: 200, description: 'Hospital claim data retrieved' })
   @ApiResponse({
     status: 404,
     description: 'Claim not found or hospital endpoint not configured',
   })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   async fetchHospitalClaimData(@Param('id') id: string) {
     const claim = await this.claimsService.findOne(id);
     if (!claim) {

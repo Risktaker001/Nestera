@@ -16,42 +16,61 @@ import {
 } from '../entities/savings-product.entity';
 
 export class CreateProductDto {
-  @ApiProperty({ example: 'Fixed 12-Month Plan', description: 'Product name' })
+  @ApiProperty({
+    example: 'Fixed 12-Month Plan',
+    description: 'Product name',
+  })
   @IsString()
   @IsNotEmpty()
   @MinLength(2)
   @MaxLength(200)
   name: string;
 
-  @ApiProperty({ enum: SavingsProductType, description: 'Product type' })
+  @ApiProperty({
+    enum: SavingsProductType,
+    description: 'Product type',
+    example: SavingsProductType.FIXED,
+  })
   @IsEnum(SavingsProductType)
   type: SavingsProductType;
 
-  @ApiPropertyOptional({ description: 'Product description' })
+  @ApiPropertyOptional({
+    description: 'Product description',
+    example: 'A fixed-term savings plan with guaranteed returns',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2000)
   description?: string;
 
-  @ApiProperty({ example: 8.5, description: 'Annual interest rate (%)' })
+  @ApiProperty({
+    example: 8.5,
+    description: 'Annual interest rate (%)',
+  })
   @IsNumber()
   @Min(0)
   @Max(100)
   interestRate: number;
 
-  @ApiProperty({ example: 1000, description: 'Minimum subscription amount' })
+  @ApiProperty({
+    example: 1000,
+    description: 'Minimum subscription amount (in XLM)',
+  })
   @IsNumber()
   @Min(0)
   minAmount: number;
 
-  @ApiProperty({ example: 1000000, description: 'Maximum subscription amount' })
+  @ApiProperty({
+    example: 1000000,
+    description: 'Maximum subscription amount (in XLM)',
+  })
   @IsNumber()
   @Min(0)
   maxAmount: number;
 
   @ApiPropertyOptional({
     example: 12,
-    description: 'Tenure in months (e.g. for fixed)',
+    description: 'Tenure in months (e.g., for fixed deposits)',
   })
   @IsOptional()
   @IsNumber()
@@ -60,6 +79,9 @@ export class CreateProductDto {
   tenureMonths?: number;
 
   @ApiPropertyOptional({
+    description: 'Whether the product is active upon creation',
+    example: true,
+  })
     example: 'contract1234567890abcdefghijklmnopqrstuvwxyz',
     description: 'Soroban contract ID for testnet/mainnet',
   })
