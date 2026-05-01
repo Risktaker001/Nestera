@@ -75,7 +75,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const localeCookie = cookies().get("nestera-locale")?.value;
+  const localeCookie = (await cookies()).get("nestera-locale")?.value;
   const locale = supportedLocales.includes(
     localeCookie as (typeof supportedLocales)[number],
   )

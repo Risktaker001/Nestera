@@ -34,8 +34,8 @@ const pageCopy = {
   },
 } as const;
 
-export function generateMetadata(): Metadata {
-  const locale = cookies().get("nestera-locale")?.value === "es" ? "es" : "en";
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = (await cookies()).get("nestera-locale")?.value === "es" ? "es" : "en";
   const content = pageCopy[locale];
 
   return {
@@ -44,8 +44,8 @@ export function generateMetadata(): Metadata {
   };
 }
 
-export default function PrivacyPage() {
-  const locale = cookies().get("nestera-locale")?.value === "es" ? "es" : "en";
+export default async function PrivacyPage() {
+  const locale = (await cookies()).get("nestera-locale")?.value === "es" ? "es" : "en";
   const content = pageCopy[locale];
 
   return (

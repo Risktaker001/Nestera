@@ -180,6 +180,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
   const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const disconnectionCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const refreshInterval = useRef<NodeJS.Timeout | null>(null);
   const isInitializedRef = useRef(false);
 
   // React Query handles fetching, caching, and background refetch
@@ -239,36 +240,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (!state.address) {
         throw new Error("Wallet address is missing.");
       }
-  // Utility: Check if wallet is disconnected from extension
-  const checkWalletDisconnection = useCallback(async () => {
-    if (!state.address || !state.isConnected) return;
-
-    try {
-      const connected = await isConnected();
-      if (!connected?.isConnected) {
-        // Wallet disconnected from extension
-        setState((s) => ({
-          ...s,
-          isWalletLocked: false,
-          hasConnectionIssue: true,
-          connectionStatus: "disconnected",
-          error: "Wallet disconnected. Click Reconnect to restore connection.",
-        }));
-      }
-    } catch (error) {
-      console.error("Error checking disconnection:", error);
-      setState((s) => ({
-        ...s,
-        hasConnectionIssue: true,
-        error: "Failed to verify wallet connection.",
-      }));
-    }
-  }, [state.address, state.isConnected]);
-
-  const fetchBalances = useCallback(async () => {
-    if (!state.address) return;
-
-    setState((s) => ({ ...s, isBalancesLoading: true, balanceError: null }));
 
       const horizonUrl = getHorizonUrl(state.network);
       const server = new Horizon.Server(horizonUrl);
@@ -291,65 +262,77 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     placeholderData: keepPreviousData,
   });
 
+  const checkWalletDisconnection = useCallback(async () => {
+    if (!state.address || !state.isConnected) return;
+
+    try {
+      const connected = await isConnected();
+      if (!connected?.isConnected) {
+        setState((s) => ({
+          ...s,
+          isWalletLocked: false,
+          hasConnectionIssue: true,
+          connectionStatus: "disconnected",
+          error: "Wallet disconnected. Click Reconnect to restore connection.",
+        }));
+      }
+    } catch (error) {
+      console.error("Error checking disconnection:", error);
+      setState((s) => ({
+        ...s,
+        hasConnectionIssue: true,
+        error: "Failed to verify wallet connection.",
+      }));
+    }
+  }, [state.address, state.isConnected]);
+
   const fetchBalances = useCallback(async () => {
     if (!state.address) return;
-
     await balanceQuery.refetch();
   }, [balanceQuery, state.address]);
-      // Fetch prices
-      const assetIds = Object.values(COINGECKO_IDS).join(",");
-      const priceRes = await fetch(
-        `${env.coinGeckoApiUrl}/simple/price?ids=${assetIds}&vs_currencies=usd`
+
+  useEffect(() => {
+    if (state.address) {
+      fetchBalances();
+
+      // Real-time balance updates every 30 seconds
+      if (refreshInterval.current) clearInterval(refreshInterval.current);
+      refreshInterval.current = setInterval(fetchBalances, 30000);
+
+      // Check for disconnection every 15 seconds
+      if (disconnectionCheckInterval.current) {
+        clearInterval(disconnectionCheckInterval.current);
+      }
+      disconnectionCheckInterval.current = setInterval(
+        checkWalletDisconnection,
+        15000,
       );
-      const prices = await priceRes.json();
-
-      let totalUsd = 0;
-      const balances: Balance[] = account.balances.map((b: any) => {
-        const code = b.asset_type === "native" ? "XLM" : b.asset_code;
-        const coingeckoId = COINGECKO_IDS[code];
-        const price = prices[coingeckoId]?.usd || (code === "USDC" ? 1 : 0);
-        const usdValue = parseFloat(b.balance) * price;
-        totalUsd += usdValue;
-
-        return {
-          asset_code: code,
-          balance: b.balance,
-          asset_type: b.asset_type,
-          asset_issuer: b.asset_issuer,
-          usd_value: usdValue,
-        };
-      });
+    } else {
+      if (refreshInterval.current) {
+        clearInterval(refreshInterval.current);
+        refreshInterval.current = null;
+      }
+      if (disconnectionCheckInterval.current) {
+        clearInterval(disconnectionCheckInterval.current);
+        disconnectionCheckInterval.current = null;
+      }
 
       setState((s) => ({
         ...s,
-        balances,
-        totalUsdValue: totalUsd,
+        balances: [],
+        totalUsdValue: 0,
         isBalancesLoading: false,
         balanceError: null,
-        lastBalanceSync: Date.now(),
-        hasConnectionIssue: false,
+        lastBalanceSync: null,
       }));
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Unable to refresh wallet balances.";
-      console.error("Failed to fetch balances:", err);
-
-      // Detect if error might be due to disconnection
-      if (errorMessage.includes("timeout") || errorMessage.includes("network")) {
-        setState((s) => ({
-          ...s,
-          isBalancesLoading: false,
-          balanceError: errorMessage,
-          hasConnectionIssue: true,
-        }));
-      } else {
-        setState((s) => ({
-          ...s,
-          isBalancesLoading: false,
-          balanceError: errorMessage,
-        }));
-      }
     }
-  }, [state.address, state.network]);
+
+    return () => {
+      if (refreshInterval.current) clearInterval(refreshInterval.current);
+      if (disconnectionCheckInterval.current)
+        clearInterval(disconnectionCheckInterval.current);
+    };
+  }, [state.address, fetchBalances, checkWalletDisconnection]);
 
   // Restore session on mount
   useEffect(() => {
@@ -411,6 +394,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
     queryClient.removeQueries({ queryKey: ["wallet-balances"] });
   }, [queryClient, state.address, state.isConnected]);
+
+  useEffect(() => {
     if (state.address) {
       fetchBalances();
 
@@ -745,7 +730,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         lastBalanceSync,
         isBalancesLoading,
         connect,
+        reconnect,
         disconnect,
+        clearError,
         fetchBalances,
       }}
     >

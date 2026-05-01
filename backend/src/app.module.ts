@@ -167,7 +167,6 @@ const envValidationSchema = Joi.object({
       useFactory: (configService: ConfigService) =>
         createTypeOrmOptions(configService),
     }),
-    ScheduleModule.forRoot(),
     AuthModule,
     CacheModule,
     HealthModule,
@@ -223,7 +222,6 @@ const envValidationSchema = Joi.object({
   controllers: [AppController],
   providers: [
     AppService,
-    GracefulShutdownService,
     {
       provide: APP_GUARD,
       useClass: TieredThrottlerGuard,

@@ -7,10 +7,7 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
-  i18n: {
-    locales: ["en", "es"],
-    defaultLocale: "en",
-  },
+  // i18n configuration removed - handled by App Router with [locale] directories
 };
 
 // Wrap with Bundle Analyzer

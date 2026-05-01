@@ -3,7 +3,7 @@
 import React from 'react';
 import { DocSection } from './DocsSidebar';
 import { Copy, ExternalLink, Terminal, ShieldCheck, Target, HelpCircle } from 'lucide-react';
-import { env } from '../config/env';
+import { env } from '../../config/env';
 
 interface SectionProps {
   section: DocSection;

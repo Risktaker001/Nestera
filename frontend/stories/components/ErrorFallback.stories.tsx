@@ -16,6 +16,6 @@ type Story = StoryObj<typeof ErrorFallback>;
 export const Default: Story = {
   args: {
     error: new Error("Failed to fetch wallet data"),
-    resetErrorBoundary: () => console.log("Reset clicked"),
+    reset: () => console.log("Reset clicked"),
   },
 };

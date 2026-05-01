@@ -20,15 +20,9 @@ export async function generateMetadata({
   };
 }
 
-export default async function LocaleLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: { locale: string };
-}) {
-  const messages = (await import(`../../locales/${params.locale}.json`))
-    .default;
+export default async function LocaleLayout(props: any) {
+  const { children, params } = props;
+  const messages = (await import(`../../locales/${params.locale}.json`)).default;
 
   return (
     <NextIntlClientProvider locale={params.locale} messages={messages}>

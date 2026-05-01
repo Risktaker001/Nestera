@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { CheckCircle2, Clock, XCircle, ArrowUpRight } from 'lucide-react';
-import { ProposalsSkeleton } from '../../ui/PageSkeletons';
+import { ProposalsSkeleton } from '../../components/ui/PageSkeletons';
 
 const proposals = [
 // ... existing proposals

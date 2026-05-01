@@ -6,8 +6,6 @@ import PortfolioPerformanceChart from "./PortfolioPerformanceChart";
 import AnalyticsComparisonGrid from "./AnalyticsComparisonGrid";
 import { AnalyticsSkeleton } from "../../components/ui/PageSkeletons";
 
-export const metadata = { title: "Analytics – Nestera" };
-
 const analyticsCardClass =
   "rounded-2xl border border-[var(--color-border)] bg-linear-to-b from-[var(--color-card-start)] to-[var(--color-card-end)] p-6";
 
